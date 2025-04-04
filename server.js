@@ -1028,13 +1028,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
     
     // Initialize database
     db.serialize(() => {
-        // Create users table with email column
+        // First, check if tables exist and create them if they don't
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             email TEXT,
-            role TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_super_user INTEGER DEFAULT 0,
             is_public INTEGER DEFAULT 0,
@@ -1043,14 +1043,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
             last_login TIMESTAMP
         )`);
 
-        // Create schools table
         db.run(`CREATE TABLE IF NOT EXISTS schools (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
 
-        // Create public_visitors table
         db.run(`CREATE TABLE IF NOT EXISTS public_visitors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -1060,7 +1058,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
             registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
 
-        // Create visitor_logins table to track login history
         db.run(`CREATE TABLE IF NOT EXISTS visitor_logins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             visitor_id INTEGER NOT NULL,
@@ -1068,93 +1065,70 @@ const db = new sqlite3.Database(dbPath, (err) => {
             FOREIGN KEY (visitor_id) REFERENCES public_visitors(id)
         )`);
 
-        // Check existing columns
-        db.all("PRAGMA table_info(users)", [], (err, rows) => {
-            if (err) {
-                console.error('Error checking table schema:', err);
-                return;
-            }
-            const columns = rows.map(row => row.name);
+        // After tables are created, ensure admin accounts exist
+        const adminAccounts = [
+            { username: 'peter41', password: 'Peter2025AA', email: 'peter41@example.com', role: 'admin' },
+            { username: 'peter42', password: 'Peter2025BB', email: 'peter42@example.com', role: 'admin' }
+        ];
 
-            // Define columns to add
-            const columnsToAdd = [
-                { name: 'email', type: 'TEXT' },
-                { name: 'role', type: 'TEXT NOT NULL' },
-                { name: 'is_super_user', type: 'INTEGER DEFAULT 0' },
-                { name: 'is_public', type: 'INTEGER DEFAULT 0' },
-                { name: 'portfolio_path', type: 'TEXT' },
-                { name: 'avatar_path', type: 'TEXT' },
-                { name: 'last_login', type: 'TIMESTAMP' }
-            ];
-
-            // Add missing columns
-            for (const column of columnsToAdd) {
-                if (!columns.includes(column.name)) {
-                    console.log(`Adding ${column.name} column...`);
-                    db.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`, (err) => {
-                        if (err) {
-                            console.error(`Error adding ${column.name} column:`, err);
-                        }
-                    });
+        // Create admin accounts if they don't exist
+        for (const account of adminAccounts) {
+            db.get('SELECT * FROM users WHERE username = ?', [account.username], (err, row) => {
+                if (err) {
+                    console.error(`Error checking for ${account.username}:`, err);
+                    return;
                 }
-            }
-
-            // Create admin accounts if they don't exist
-            const adminAccounts = [
-                { username: 'peter41', password: 'Peter2025AA', is_super_user: 1 },
-                { username: 'peter42', password: 'Peter2025BB', is_super_user: 1 }
-            ];
-
-            for (const account of adminAccounts) {
-                db.get('SELECT * FROM users WHERE username = ?', [account.username], (err, row) => {
-                    if (err) {
-                        console.error(`Error checking for ${account.username}:`, err);
-                        return;
-                    }
-                    if (!row) {
-                        console.log(`${account.username} not found, creating...`);
-                        bcrypt.hash(account.password, 10, (err, hashedPassword) => {
-                            if (err) {
-                                console.error(`Error hashing password for ${account.username}:`, err);
-                                return;
-                            }
-                            db.run(
-                                `INSERT INTO users (
-                                    username, 
-                                    password, 
-                                    email, 
-                                    role, 
-                                    is_super_user
-                                ) VALUES (?, ?, ?, ?, ?)`,
-                                [
-                                    account.username,
-                                    hashedPassword,
-                                    `${account.username}@example.com`,
-                                    'admin',
-                                    account.is_super_user
-                                ],
-                                (err) => {
-                                    if (err) {
-                                        console.error(`Error creating ${account.username}:`, err);
-                                    }
-                                }
-                            );
-                        });
-                    } else {
-                        // Update super user status
+                
+                if (!row) {
+                    console.log(`Creating admin account for ${account.username}...`);
+                    bcrypt.hash(account.password, 10, (err, hashedPassword) => {
+                        if (err) {
+                            console.error(`Error hashing password for ${account.username}:`, err);
+                            return;
+                        }
+                        
                         db.run(
-                            'UPDATE users SET is_super_user = 1 WHERE username = ?',
-                            [account.username],
+                            `INSERT INTO users (
+                                username, 
+                                password, 
+                                email, 
+                                role, 
+                                is_super_user
+                            ) VALUES (?, ?, ?, ?, 1)`,
+                            [
+                                account.username,
+                                hashedPassword,
+                                account.email,
+                                account.role
+                            ],
                             (err) => {
                                 if (err) {
-                                    console.error(`Error updating ${account.username}:`, err);
+                                    console.error(`Error creating ${account.username}:`, err);
+                                } else {
+                                    console.log(`Successfully created admin account for ${account.username}`);
                                 }
                             }
                         );
-                    }
-                });
-            }
-        });
+                    });
+                } else {
+                    // Update existing admin account to ensure correct settings
+                    db.run(
+                        `UPDATE users SET 
+                            is_super_user = 1,
+                            role = 'admin'
+                        WHERE username = ?`,
+                        [account.username],
+                        (err) => {
+                            if (err) {
+                                console.error(`Error updating ${account.username}:`, err);
+                            } else {
+                                console.log(`Verified admin settings for ${account.username}`);
+                            }
+                        }
+                    );
+                }
+            });
+        }
     });
 });
 
