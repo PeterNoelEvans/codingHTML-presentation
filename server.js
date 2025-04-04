@@ -1028,9 +1028,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
     
     // Initialize database
     db.serialize(() => {
-        // Drop and recreate users table with email column
-        db.run(`DROP TABLE IF EXISTS users`);
-        db.run(`CREATE TABLE users (
+        // Create users table with email column
+        db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
