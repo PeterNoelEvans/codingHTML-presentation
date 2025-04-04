@@ -1033,7 +1033,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
+            email TEXT,
             role TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_super_user INTEGER DEFAULT 0,
@@ -1078,6 +1078,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
             // Define columns to add
             const columnsToAdd = [
+                { name: 'email', type: 'TEXT' },
                 { name: 'role', type: 'TEXT NOT NULL' },
                 { name: 'is_super_user', type: 'INTEGER DEFAULT 0' },
                 { name: 'is_public', type: 'INTEGER DEFAULT 0' },
@@ -1098,13 +1099,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 }
             }
 
-            // Create Peter accounts if they don't exist
-            const peterAccounts = [
-                { username: 'peter41', password: 'peter41', is_super_user: 1 },
-                { username: 'peter42', password: 'peter42', is_super_user: 1 }
+            // Create admin accounts if they don't exist
+            const adminAccounts = [
+                { username: 'peter41', password: 'Peter2025AA', is_super_user: 1 },
+                { username: 'peter42', password: 'Peter2025BB', is_super_user: 1 }
             ];
 
-            for (const account of peterAccounts) {
+            for (const account of adminAccounts) {
                 db.get('SELECT * FROM users WHERE username = ?', [account.username], (err, row) => {
                     if (err) {
                         console.error(`Error checking for ${account.username}:`, err);
