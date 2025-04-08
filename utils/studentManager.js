@@ -76,11 +76,6 @@ class StudentManager {
                 }
             }
             
-            // Add UNIQUE constraint for email if it exists
-            if (columns.includes('email')) {
-                await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-            }
-            
             console.log('Database schema is up to date.');
         } catch (error) {
             console.error('Error updating database schema:', error);
