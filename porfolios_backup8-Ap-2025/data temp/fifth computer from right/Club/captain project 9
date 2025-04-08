@@ -1,0 +1,7 @@
+import turtle
+c = turtle.Turtle()
+c.pensize(1)
+n.speed(0)
+angle = 36
+
+                      

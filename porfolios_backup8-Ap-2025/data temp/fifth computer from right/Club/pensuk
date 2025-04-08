@@ -1,0 +1,4 @@
+import tutle
+screen=tutle.screen()
+screen.setup(2,000,180 0,00)
+screen.bgcolor('')

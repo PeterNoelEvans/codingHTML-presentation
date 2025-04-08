@@ -1,0 +1,5 @@
+import turtle
+c = turtle.Turtle()
+radius = 400
+
+c.Turtle(radius)

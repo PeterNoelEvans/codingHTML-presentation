@@ -35,6 +35,8 @@ logs
 # Backup files
 *.backup
 *-backup*
+portfolios_backup*
+porfolios_backup*
 
 # Temporary files
 *.tmp

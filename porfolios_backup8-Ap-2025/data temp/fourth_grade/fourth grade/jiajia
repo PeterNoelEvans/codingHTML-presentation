@@ -1,0 +1,55 @@
+
+window.setup(2000,1800,0,0)
+window.bgcolor('skyblue')
+
+jiajia = turtle.Turtle()
+jiajia.shape('turtle')
+jiajia.shapesize(3)
+jiajia.speed(0)
+angle = 90
+length=100
+jiajia.penup()
+jiajia.goto(-400,-300)
+jiajia.pendown()
+
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*6)
+jiajia.left(90)
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*6)
+jiajia.left(90)
+
+
+
+jiajia.fillcolor('#A51931')  # red
+jiajia.begin_fill()
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*1)
+jiajia.left(90)
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*1)
+jiajia.left(90)
+jiajia.end_fill()
+
+jiajia.right(90)
+jiajia.backward(length)
+jiajia.left(90)
+
+jiajia.fillcolor('#F4F5F8')  # white
+jiajia.begin_fill()
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*1)
+jiajia.left(90)
+jiajia.forward(length*9)
+jiajia.left(90)
+jiajia.forward(length*1)
+jiajia.left(90)
+jiajia.end_fill()
+
+
+turtle.exitonclick()
