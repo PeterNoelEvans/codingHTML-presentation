@@ -160,6 +160,37 @@ async function initializeApp() {
                 res.set('Cache-Control', 'public, max-age=86400');
             }
         }));
+
+        // Middleware to check portfolio access
+        app.use('/portfolios', async (req, res, next) => {
+            // Get the portfolio path from the request
+            const portfolioPath = req.path;
+            
+            // Check if the portfolio is public
+            const db = new sqlite3.Database(dbPath);
+            try {
+                const user = await new Promise((resolve, reject) => {
+                    db.get('SELECT is_public FROM users WHERE portfolio_path LIKE ?', [`%${portfolioPath}%`], (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    });
+                });
+
+                // If portfolio is public or user is authenticated, allow access
+                if (user?.is_public || req.session?.user) {
+                    next();
+                } else {
+                    // If not public and not authenticated, redirect to login
+                    res.redirect('/login.html');
+                }
+            } catch (error) {
+                console.error('Error checking portfolio access:', error);
+                next();
+            } finally {
+                db.close();
+            }
+        });
+
         app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
             dotfiles: 'allow',
             etag: true,
@@ -866,6 +897,51 @@ app.get('/classes', (req, res) => {
     console.log(`==== END CLASS VIEWER REQUEST ====\n`);
 });
 
+// API endpoint to get students for a class
+app.get('/api/classes/:classId/students', async (req, res) => {
+    const classId = req.params.classId;
+    const portfolioPath = req.query.portfolioPath;
+    const db = new sqlite3.Database(dbPath);
+    
+    try {
+        // Log the request for debugging
+        console.log(`\n==== STUDENT FETCH DEBUG ====`);
+        console.log(`Class ID: ${classId}`);
+        console.log(`Portfolio Path: ${portfolioPath}`);
+        
+        if (!portfolioPath) {
+            return res.status(400).json({ error: 'portfolioPath parameter is required' });
+        }
+        
+        // Get all students from the database
+        const students = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM users WHERE portfolio_path LIKE ?', [`%${portfolioPath}%`], (err, rows) => {
+                if (err) {
+                    console.error('Database error:', err);
+                    reject(err);
+                }
+                console.log(`Found ${rows?.length || 0} students in database`);
+                
+                // Filter to only show public portfolios if user is not authenticated
+                if (!req.session?.user && !req.session?.authenticated) {
+                    console.log('User not authenticated, showing only public portfolios');
+                    rows = rows.filter(student => student.is_public === 1);
+                }
+                
+                resolve(rows || []);
+            });
+        });
+        
+        console.log(`Returning ${students.length} students`);
+        res.json(students);
+    } catch (error) {
+        console.error('Error getting students:', error);
+        res.status(500).json({ error: 'Error getting students' });
+    } finally {
+        db.close();
+    }
+});
+
 // Protected portfolio access
 app.get('/portfolios/*', async (req, res, next) => {
     const portfolioPath = req.path;
@@ -1176,187 +1252,6 @@ app.get('/api/schools/:schoolId/classes/:classId', (req, res) => {
         return res.status(404).json({ error: 'Class not found' });
     }
     res.json(cls);
-});
-
-app.get('/api/classes/:classId/students', async (req, res) => {
-    const classId = req.params.classId;
-    const portfolioPath = req.query.portfolioPath;
-    const db = new sqlite3.Database(dbPath);
-    
-    try {
-        // Log the request for debugging
-        console.log(`\n==== STUDENT FETCH DEBUG ====`);
-        console.log(`Class ID: ${classId}`);
-        console.log(`Portfolio Path: ${portfolioPath}`);
-        
-        if (!portfolioPath) {
-            return res.status(400).json({ error: 'portfolioPath parameter is required' });
-        }
-        
-        // Special handling for Phumdham classes
-        if (classId === 'Class4-1' || classId === 'Class4-2') {
-            const classNumber = classId === 'Class4-1' ? '1' : '2';
-            const searchPath = `P4-${classNumber}`;
-            
-            console.log(`Special handling for Phumdham class: ${classId}, searching for ${searchPath}`);
-            
-            // Direct query for P4-1 or P4-2 folders
-            const students = await new Promise((resolve, reject) => {
-                db.all('SELECT * FROM users WHERE portfolio_path LIKE ?', [`%${searchPath}%`], (err, rows) => {
-                    if (err) {
-                        console.error('Database error:', err);
-                        reject(err);
-                    }
-                    
-                    console.log(`Found ${rows.length} students for Phumdham ${classId}`);
-                    if (rows.length > 0) {
-                        console.log('Sample students:');
-                        for (let i = 0; i < Math.min(5, rows.length); i++) {
-                            console.log(` - ${rows[i].username}: ${rows[i].portfolio_path}`);
-                        }
-                    }
-                    
-                    resolve(rows || []);
-                });
-            });
-            
-            console.log(`==== END DEBUG ====\n`);
-            return res.json(students);
-        }
-        
-        // Special handling for M2 class
-        if (classId === 'M2-001') {
-            console.log('Handling M2-001 class');
-            
-            // Get students from database first
-            const dbStudents = await new Promise((resolve, reject) => {
-                db.all('SELECT * FROM users WHERE portfolio_path LIKE ?', [`%M2-001%`], (err, rows) => {
-                    if (err) {
-                        console.error('Database error:', err);
-                        reject(err);
-                    }
-                    
-                    console.log(`Found ${rows?.length || 0} students in database`);
-                    if (rows?.length > 0) {
-                        console.log('Sample students:');
-                        rows.slice(0, 3).forEach(student => {
-                            console.log(` - ${student.username}: ${student.portfolio_path}`);
-                        });
-                    }
-                    
-                    resolve(rows || []);
-                });
-            });
-            
-            // If no students in database, check filesystem
-            if (!dbStudents.length) {
-                console.log('No M2 students found in database, checking filesystem');
-                
-                try {
-                    const folderPath = path.join(__dirname, 'portfolios', 'M2-001');
-                    if (fs.existsSync(folderPath)) {
-                        console.log(`Found M2 directory: ${folderPath}`);
-                        
-                        // Get files and directories
-                        const entries = fs.readdirSync(folderPath, { withFileTypes: true });
-                        const studentDirs = entries.filter(entry => entry.isDirectory());
-                        
-                        console.log(`Found ${studentDirs.length} student directories in ${folderPath}`);
-                        
-                        for (const dir of studentDirs) {
-                            const studentName = dir.name;
-                            const studentPath = path.join(folderPath, studentName);
-                            
-                            // Find HTML files
-                            const files = fs.readdirSync(studentPath);
-                            const htmlFiles = files.filter(file => file.toLowerCase().endsWith('.html'));
-                            
-                            if (htmlFiles.length) {
-                                const htmlFile = htmlFiles[0];
-                                dbStudents.push({
-                                    username: studentName,
-                                    portfolio_path: `/portfolios/M2-001/${studentName}/${htmlFile}`,
-                                    avatar_path: `/portfolios/M2-001/${studentName}/images/${studentName}.jpg`,
-                                    is_public: 1
-                                });
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error reading filesystem for M2:', error);
-                }
-            }
-            
-            console.log(`==== END DEBUG ====\n`);
-            return res.json(dbStudents);
-        }
-        
-        // Regular handling for other classes
-        const students = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM users', [], (err, rows) => {
-                if (err) {
-                    console.error('Database error:', err);
-                    reject(err);
-                }
-                console.log(`Total users in database: ${rows.length}`);
-                
-                // Print all portfolio paths for debugging
-                console.log("All portfolio paths in database:");
-                rows.forEach((user, i) => {
-                    if (user.portfolio_path) {
-                        console.log(`${i+1}. ${user.username}: ${user.portfolio_path}`);
-                    }
-                });
-                
-                // Extract the folder name from portfolioPath for more flexible matching
-                const pathParts = portfolioPath.split('/');
-                const folderName = pathParts[pathParts.length - 1];
-                
-                console.log(`Looking for portfolios with folder name: ${folderName}`);
-                
-                // Filter students based on the portfolio path (case-insensitive)
-                // Try multiple matching strategies
-                const filteredStudents = rows.filter(user => {
-                    // Make sure user has a portfolio path before checking
-                    if (!user.portfolio_path) return false;
-                    
-                    // Convert to lowercase for case-insensitive comparison
-                    const userPath = user.portfolio_path.toLowerCase();
-                    const searchPath = portfolioPath.toLowerCase();
-                    const searchFolder = folderName.toLowerCase();
-                    
-                    // Try different matching strategies
-                    return userPath.includes(searchPath) || 
-                           userPath.includes(searchFolder) || 
-                           userPath.includes(`portfolios/${searchFolder}`) ||
-                           userPath.includes(`/portfolios/${searchFolder}`);
-                });
-                
-                console.log(`Found ${filteredStudents.length} students for path: ${portfolioPath}`);
-                
-                if (filteredStudents.length > 0) {
-                    // Log first 5 students for debugging
-                    console.log('Sample students:');
-                    for (let i = 0; i < Math.min(5, filteredStudents.length); i++) {
-                        const s = filteredStudents[i];
-                        console.log(` - ${s.username}: ${s.portfolio_path}`);
-                    }
-                } else {
-                    console.log('No students found! Check database entries and portfolio paths.');
-                }
-                
-                resolve(filteredStudents || []);
-            });
-        });
-        
-        console.log(`==== END DEBUG ====\n`);
-        res.json(students);
-    } catch (error) {
-        console.error('Error getting students:', error);
-        res.status(500).json({ error: 'Error getting students' });
-    } finally {
-        db.close();
-    }
 });
 
 // Public visitor registration
