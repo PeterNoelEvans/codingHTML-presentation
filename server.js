@@ -1065,10 +1065,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
             FOREIGN KEY (visitor_id) REFERENCES public_visitors(id)
         )`);
 
-        // After tables are created, ensure admin accounts exist
+        // Create admin accounts
         const adminAccounts = [
-            { username: 'peter41', password: 'Peter2025AA', email: 'peter41@example.com', role: 'admin' },
-            { username: 'peter42', password: 'Peter2025BB', email: 'peter42@example.com', role: 'admin' }
+            { username: 'peter41', password: 'Peter2025AA', email: 'sjchpb@gmail.com', role: 'admin' },
+            { username: 'peter42', password: 'Peter2025BB', email: 'sjchpb@gmail.com', role: 'admin' }
         ];
 
         // Create admin accounts if they don't exist

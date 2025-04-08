@@ -59,6 +59,7 @@ class StudentManager {
                 'nickname': 'ALTER TABLE users ADD COLUMN nickname TEXT',
                 'email': 'ALTER TABLE users ADD COLUMN email TEXT',
                 'is_super_user': 'ALTER TABLE users ADD COLUMN is_super_user BOOLEAN DEFAULT 0',
+                'role': 'ALTER TABLE users ADD COLUMN role TEXT DEFAULT "student"',
                 'created_at': 'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
                 'updated_at': 'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
             };
