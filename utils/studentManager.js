@@ -75,6 +75,11 @@ class StudentManager {
                 await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
             }
             
+            if (!columns.includes('role')) {
+                console.log('Adding role column...');
+                await db.exec('ALTER TABLE users ADD COLUMN role TEXT DEFAULT "student"');
+            }
+            
             console.log('Database schema is up to date.');
         } catch (error) {
             console.error('Error updating database schema:', error);
