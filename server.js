@@ -1093,13 +1093,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                 password, 
                                 email, 
                                 role, 
-                                is_super_user
-                            ) VALUES (?, ?, ?, ?, 1)`,
+                                is_super_user,
+                                portfolio_path
+                            ) VALUES (?, ?, ?, ?, 1, ?)`,
                             [
                                 account.username,
                                 hashedPassword,
                                 account.email,
-                                account.role
+                                account.role,
+                                `/portfolios/${account.username}`
                             ],
                             (err) => {
                                 if (err) {
