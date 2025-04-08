@@ -52,32 +52,28 @@ class StudentManager {
             const tableInfo = await db.all(`PRAGMA table_info(users)`);
             const columns = tableInfo.map(col => col.name.toLowerCase());
             
-            // Check for each column and add if missing
-            if (!columns.includes('first_name')) {
-                console.log('Adding first_name column...');
-                await db.exec('ALTER TABLE users ADD COLUMN first_name TEXT');
+            // Define all required columns and their SQL
+            const requiredColumns = {
+                'first_name': 'ALTER TABLE users ADD COLUMN first_name TEXT',
+                'last_name': 'ALTER TABLE users ADD COLUMN last_name TEXT',
+                'nickname': 'ALTER TABLE users ADD COLUMN nickname TEXT',
+                'email': 'ALTER TABLE users ADD COLUMN email TEXT',
+                'is_super_user': 'ALTER TABLE users ADD COLUMN is_super_user BOOLEAN DEFAULT 0',
+                'created_at': 'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                'updated_at': 'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+            };
+            
+            // Add any missing columns
+            for (const [column, sql] of Object.entries(requiredColumns)) {
+                if (!columns.includes(column)) {
+                    console.log(`Adding ${column} column...`);
+                    await db.exec(sql);
+                }
             }
             
-            if (!columns.includes('last_name')) {
-                console.log('Adding last_name column...');
-                await db.exec('ALTER TABLE users ADD COLUMN last_name TEXT');
-            }
-            
-            if (!columns.includes('nickname')) {
-                console.log('Adding nickname column...');
-                await db.exec('ALTER TABLE users ADD COLUMN nickname TEXT');
-            }
-            
-            if (!columns.includes('email')) {
-                console.log('Adding email column...');
-                await db.exec('ALTER TABLE users ADD COLUMN email TEXT');
-                // Add UNIQUE constraint after adding the column
+            // Add UNIQUE constraint for email if it exists
+            if (columns.includes('email')) {
                 await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-            }
-            
-            if (!columns.includes('role')) {
-                console.log('Adding role column...');
-                await db.exec('ALTER TABLE users ADD COLUMN role TEXT DEFAULT "student"');
             }
             
             console.log('Database schema is up to date.');
