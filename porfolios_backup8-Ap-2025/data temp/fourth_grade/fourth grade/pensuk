@@ -1,7 +1,0 @@
-import turtle
-
-setupthescreen
-screne=turtle.screen()
-screen.setup(2000,1800,0,0)
-screen.bgccolor('skyblue')
-

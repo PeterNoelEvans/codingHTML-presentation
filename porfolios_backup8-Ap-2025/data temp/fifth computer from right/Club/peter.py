@@ -1,4 +1,0 @@
-import turtle
-
-
-turtle.exitonclick()
