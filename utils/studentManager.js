@@ -61,7 +61,7 @@ class StudentManager {
                 'is_super_user': 'ALTER TABLE users ADD COLUMN is_super_user BOOLEAN DEFAULT 0',
                 'role': 'ALTER TABLE users ADD COLUMN role TEXT DEFAULT "student"',
                 'created_at': 'ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                'updated_at': 'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+                'updated_at': 'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP'
             };
             
             // Add any missing columns
@@ -69,6 +69,10 @@ class StudentManager {
                 if (!columns.includes(column)) {
                     console.log(`Adding ${column} column...`);
                     await db.exec(sql);
+                    // If this is the updated_at column, set initial values
+                    if (column === 'updated_at') {
+                        await db.exec('UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+                    }
                 }
             }
             
