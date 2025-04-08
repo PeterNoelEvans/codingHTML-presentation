@@ -68,6 +68,13 @@ class StudentManager {
                 await db.exec('ALTER TABLE users ADD COLUMN nickname TEXT');
             }
             
+            if (!columns.includes('email')) {
+                console.log('Adding email column...');
+                await db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+                // Add UNIQUE constraint after adding the column
+                await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+            }
+            
             console.log('Database schema is up to date.');
         } catch (error) {
             console.error('Error updating database schema:', error);
