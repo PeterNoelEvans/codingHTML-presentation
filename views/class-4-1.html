@@ -216,22 +216,56 @@
                 }
                 
                 const students = await response.json();
-                console.log(`Loaded ${students.length} students`);
+                console.log(`Fetched ${students.length} students`);
+                
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+
+                // Fetch privacy states
+                const privacyResponse = await fetch('/get-all-privacy-states', {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                const privacyStates = await privacyResponse.json();
+                console.log('Privacy states:', privacyStates);
+                
+                // Update students with privacy states
+                const studentsWithPrivacy = students.map(student => {
+                    const portfolioPath = `/portfolios/PhumdhamPrimary/classes/P4-1/${student.username}/${student.username}.html`;
+                    const isPublic = privacyStates[portfolioPath];
+                    console.log(`${student.username} privacy:`, isPublic);
+                    return {
+                        ...student,
+                        portfolio_path: portfolioPath,
+                        avatar_path: `/portfolios/PhumdhamPrimary/classes/P4-1/${student.username}/images/${student.username}.jpg`,
+                        is_public: isPublic
+                    };
+                });
+                
+                const visiblePortfolios = studentsWithPrivacy.filter(student => 
+                    student && (student.is_public || authData.authenticated)
+                );
+                
+                if (visiblePortfolios.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; width: 100%;">No portfolios found.</p>';
+                    return;
+                }
                 
                 const container = document.getElementById('portfoliosContainer');
                 container.innerHTML = '';
                 
                 // Sort students by username
-                students.sort((a, b) => a.username.localeCompare(b.username));
+                visiblePortfolios.sort((a, b) => a.username.localeCompare(b.username));
                 
-                // Filter and display portfolios
-                students.forEach(student => {
-                    // For visitors, show all portfolios but mark private ones
-                    const isPublic = student.is_public === true;
+                visiblePortfolios.forEach(student => {
                     const card = createPortfolioCard(
                         student.username,
                         student.avatar_path,
-                        isPublic,
+                        student.is_public,
                         student.portfolio_path,
                         student.nickname || student.first_name || student.username
                     );

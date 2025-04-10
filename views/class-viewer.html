@@ -522,12 +522,44 @@
                     container.innerHTML = '<div class="no-portfolios">No portfolios found for this class.</div>';
                     return;
                 }
+
+                // Fetch privacy states
+                const privacyResponse = await fetch('/get-all-privacy-states', {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+                const privacyStates = await privacyResponse.json();
+                console.log('Privacy states:', privacyStates);
+                
+                // Update students with privacy states
+                const studentsWithPrivacy = students.map(student => {
+                    const portfolioPath = student.portfolio_path;
+                    const isPublic = privacyStates[portfolioPath];
+                    console.log(`${student.username} privacy:`, isPublic);
+                    return {
+                        ...student,
+                        is_public: isPublic
+                    };
+                });
+                
+                const visiblePortfolios = studentsWithPrivacy.filter(student => 
+                    student && (student.is_public || authData.authenticated)
+                );
+                
+                if (visiblePortfolios.length === 0) {
+                    container.innerHTML = '<div class="no-portfolios">No portfolios available for viewing.</div>';
+                    return;
+                }
                 
                 // Sort students by username
-                students.sort((a, b) => a.username.localeCompare(b.username));
+                visiblePortfolios.sort((a, b) => a.username.localeCompare(b.username));
                 
                 // Create portfolio cards
-                students.forEach(student => {
+                visiblePortfolios.forEach(student => {
                     const card = createPortfolioCard(
                         student.username,
                         student.avatar_path,
@@ -647,39 +679,8 @@
             if (classParam) {
                 currentClassId = classParam;
                 localStorage.setItem('selectedClassId', currentClassId);
-                console.log(`Setting class ID from URL: ${currentClassId}`);
-            }
-            
-            // Always load schools and select the correct ones in UI
-            await loadSchools();
-            
-            // Set UI to reflect URL parameters
-            if (schoolParam) {
-                document.getElementById('schoolSelect').value = schoolParam;
-            }
-            
-            // Check authentication status
-            await checkAuth();
-            
-            // Update document title with the actual class name
-            try {
-                const response = await fetch(`/api/schools/${currentSchoolId}/classes/${currentClassId}`);
-                if (response.ok) {
-                    const classData = await response.json();
-                    document.title = `${classData.displayName} Portfolios`;
-                }
-            } catch (error) {
-                console.error('Error updating page title:', error);
-            }
-            
-            // Set default class if none selected
-            if (!currentClassId) {
-                currentClassId = currentSchoolId === 'PhumdhamPrimary' ? 'P4-1' : 'M2-001';
-                localStorage.setItem('selectedClassId', currentClassId);
-                console.log(`Setting default class ID: ${currentClassId}`);
-            }
-        });
-        
+                console.log(`
+
         // Function to update privacy states without rebuilding cards
         async function updatePrivacyStates() {
             try {
@@ -792,4 +793,4 @@
         });
     </script>
 </body>
-</html> 
+</html>

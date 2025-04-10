@@ -255,8 +255,32 @@
                 if (loadingMessage) {
                     loadingMessage.remove();
                 }
+
+                // Fetch privacy states
+                const privacyResponse = await fetch('/get-all-privacy-states', {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                const privacyStates = await privacyResponse.json();
+                console.log('Privacy states:', privacyStates);
                 
-                const visiblePortfolios = students.filter(student => 
+                // Update students with privacy states
+                const studentsWithPrivacy = students.map(student => {
+                    const portfolioPath = `/portfolios/PhumdhamPrimary/classes/P4-2/${student.username}/${student.username}.html`;
+                    const isPublic = privacyStates[portfolioPath];
+                    console.log(`${student.username} privacy:`, isPublic);
+                    return {
+                        ...student,
+                        portfolio_path: portfolioPath,
+                        avatar_path: `/portfolios/PhumdhamPrimary/classes/P4-2/${student.username}/images/${student.username}.jpg`,
+                        is_public: isPublic
+                    };
+                });
+                
+                const visiblePortfolios = studentsWithPrivacy.filter(student => 
                     student && (student.is_public || auth.authenticated)
                 );
                 
