@@ -225,78 +225,106 @@ async function initializeApp() {
 
         // Then handle HTML files with access control
         app.use('/portfolios', async (req, res, next) => {
-            console.log('\n=== Portfolio Access Request ===');
-            console.log('Path:', req.path);
-            console.log('Referer:', req.headers.referer);
-            console.log('Session:', req.session);
-            
+            console.log('\n=== DETAILED PORTFOLIO ACCESS DEBUG ===');
+            console.log('1. Request Details:');
+            console.log('   Path:', req.path);
+            console.log('   Method:', req.method);
+            console.log('   Referer:', req.headers.referer);
+            console.log('   User Agent:', req.headers['user-agent']);
+            console.log('   Session:', JSON.stringify(req.session, null, 2));
+
             // Skip access control for class viewer requests
             if (req.headers.referer && 
                 (req.headers.referer.includes('/class-viewer.html') || 
                  req.headers.referer.includes('/classes?') ||
                  req.headers.referer.includes('/class-4-1.html') ||
                  req.headers.referer.includes('/class-4-2.html'))) {
-                console.log('Skipping access control - coming from class viewer');
+                console.log('2. Access Control Skipped: Coming from class viewer');
                 return next();
             }
 
             // Skip access control for static files
             const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
             if (isStaticFile) {
-                console.log('Skipping access control - static file');
+                console.log('2. Access Control Skipped: Static file detected');
                 return next();
             }
+
+            console.log('2. Proceeding with access control (not skipped)');
 
             // For HTML files, proceed with access control
             const db = new sqlite3.Database(dbPath);
             try {
                 // Extract username from path
                 const pathParts = req.path.split('/');
+                console.log('3. Path Analysis:');
+                console.log('   Full path parts:', pathParts);
                 const username = pathParts[pathParts.length - 2]; // Get the folder name instead of HTML file
-                console.log('Checking access for username:', username);
+                console.log('   Extracted username:', username);
+
+                // Check if file exists physically
+                const fullPath = path.join(__dirname, req.path);
+                const fileExists = fs.existsSync(fullPath);
+                console.log('4. File System Check:');
+                console.log('   Full file path:', fullPath);
+                console.log('   File exists:', fileExists);
                 
                 // Get portfolio access status using case-insensitive username match
+                console.log('5. Database Query:');
+                console.log('   Looking up username:', username);
                 const portfolio = await new Promise((resolve, reject) => {
                     const query = `
                         SELECT 
                             username,
-                            MAX(is_public) as is_public
+                            portfolio_path,
+                            is_public,
+                            is_super_user
                         FROM users 
                         WHERE LOWER(username) = LOWER(?)
                         GROUP BY LOWER(username)
                     `;
+                    console.log('   Query:', query.replace(/\s+/g, ' '));
                     
                     db.get(query, [username], (err, row) => {
-                        if (err) reject(err);
-                        else resolve(row);
+                        if (err) {
+                            console.log('   Database error:', err);
+                            reject(err);
+                        } else {
+                            console.log('   Database result:', row);
+                            resolve(row);
+                        }
                     });
                 });
 
-                console.log('Portfolio lookup result:', portfolio);
-
+                console.log('6. Access Control Decision:');
                 if (!portfolio) {
-                    console.log('Portfolio not found');
+                    console.log('   Result: Portfolio not found in database');
                     return res.status(404).send('Portfolio not found');
                 }
 
                 // Check if user is authenticated
                 const isAuthenticated = req.session && req.session.user;
-                console.log('Authentication status:', isAuthenticated);
+                console.log('   Authentication status:', isAuthenticated);
+                if (isAuthenticated) {
+                    console.log('   Session user:', req.session.user);
+                }
                 
                 // Convert is_public to number and use strict comparison
                 const isPublic = Number(portfolio.is_public) === 1;
-                console.log('Portfolio is public:', isPublic);
+                console.log('   Portfolio public status:', isPublic);
                 
                 // Allow access if portfolio is public or user is authenticated
                 if (isPublic || isAuthenticated) {
-                    console.log('Access granted');
+                    console.log('   Decision: Access granted');
+                    console.log('   Reason:', isPublic ? 'Portfolio is public' : 'User is authenticated');
                     next();
                 } else {
-                    console.log('Access denied');
+                    console.log('   Decision: Access denied');
+                    console.log('   Reason: Portfolio is private and user is not authenticated');
                     res.status(403).send('Access denied');
                 }
             } catch (error) {
-                console.error('Error checking portfolio access:', error);
+                console.error('7. Error in portfolio access middleware:', error);
                 res.status(500).send('Internal server error');
             } finally {
                 db.close();
