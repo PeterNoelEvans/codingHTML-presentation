@@ -27,8 +27,11 @@ function copyRecursive(src, dest) {
 // Main function to copy portfolios
 async function copyPortfolios() {
     try {
+        // Source directory is in the local workspace
         const sourceDir = path.join(__dirname, '..', 'portfolios');
-        const destDir = path.join(__dirname, '..', 'portfolios');
+        
+        // Destination directory is in the Render server's persistent disk
+        const destDir = path.join('/opt/render/project/src', 'portfolios');
 
         // Ensure the destination directory exists
         ensureDir(destDir);
