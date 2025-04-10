@@ -241,6 +241,43 @@ async function initializeApp() {
             }
         }));
 
+        // Schools API endpoints
+        app.get('/api/schools', (req, res) => {
+            try {
+                const allSchools = schoolConfig.getSchools();
+                res.json(allSchools);
+            } catch (error) {
+                console.error('Error getting schools:', error);
+                res.status(500).json({ error: 'Failed to get schools' });
+            }
+        });
+
+        app.get('/api/schools/:schoolId', (req, res) => {
+            try {
+                const school = schoolConfig.getSchool(req.params.schoolId);
+                if (!school) {
+                    return res.status(404).json({ error: 'School not found' });
+                }
+                res.json(school);
+            } catch (error) {
+                console.error('Error getting school:', error);
+                res.status(500).json({ error: 'Failed to get school' });
+            }
+        });
+
+        app.get('/api/schools/:schoolId/classes', (req, res) => {
+            try {
+                const classes = schoolConfig.getClasses(req.params.schoolId);
+                if (!classes || classes.length === 0) {
+                    return res.status(404).json({ error: 'No classes found for this school' });
+                }
+                res.json(classes);
+            } catch (error) {
+                console.error('Error getting classes:', error);
+                res.status(500).json({ error: 'Failed to get classes' });
+            }
+        });
+
         // Then handle portfolio HTML files with authentication
         app.get('/portfolios/*', async (req, res, next) => {
             const portfolioPath = req.path;
@@ -625,37 +662,60 @@ async function initializeApp() {
         });
 
         // Additional routes
-        app.get('/check-auth', (req, res) => {
-            console.log('\n=== Auth Check ===');
-            console.log('Session:', req.session);
-            console.log('User:', req.session?.user);
-            console.log('Visitor:', req.session?.visitorId);
+        app.get('/check-access/*', (req, res) => {
+            // Remove /check-access from the start of the path
+            const portfolioPath = req.path.replace('/check-access', '');
             
-            // Set no-cache headers
-            res.set({
-                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            });
-            
-            if (req.session?.user) {
-                // Regular user
-                res.json({
-                    authenticated: true,
-                    username: req.session.user.username,
-                    portfolio_path: req.session.user.portfolio_path,
-                    userType: 'user'
+            db.get('SELECT is_public, username FROM users WHERE portfolio_path = ?',
+                [portfolioPath],
+                (err, result) => {
+                    if (err) {
+                        res.status(500).json({ error: 'Database error' });
+                        return;
+                    }
+                    
+                    // If portfolio is not registered, default to private
+                    if (!result) {
+                        res.json({ hasAccess: false });
+                        return;
+                    }
+
+                    // If portfolio is public, allow access to everyone
+                    if (result.is_public) {
+                        res.json({ hasAccess: true });
+                        return;
+                    }
+
+                    // If user is logged in
+                    if (req.session?.user) {
+                        // Check if the user is a parent
+                        const isParent = req.session.user.username.toLowerCase().startsWith('parent-');
+                        
+                        if (isParent) {
+                            // Get the student's name from parent's username (after 'parent-')
+                            const childName = req.session.user.username.substring('parent-'.length);
+                            // Parents can only see public portfolios and their child's portfolio
+                            const hasAccess = result.username === childName;
+                            res.json({ hasAccess });
+                            return;
+                        }
+
+                        // For students, check if they own the portfolio
+                        db.get('SELECT username FROM users WHERE id = ?', [req.session.user.id], (err, user) => {
+                            if (err) {
+                                res.status(500).json({ error: 'Database error' });
+                                return;
+                            }
+                            
+                            // Allow access if user owns the portfolio
+                            const hasAccess = user && result.username === user.username;
+                            res.json({ hasAccess });
+                        });
+                    } else {
+                        // Not logged in, only allow access to public portfolios
+                        res.json({ hasAccess: result.is_public });
+                    }
                 });
-            } else if (req.session?.authenticated && req.session?.visitorId) {
-                // Visitor
-                res.json({
-                    authenticated: true,
-                    username: req.session.fullName,
-                    userType: 'visitor'
-                });
-            } else {
-                res.json({ authenticated: false });
-            }
         });
 
         app.get('/logout', (req, res) => {
@@ -969,62 +1029,6 @@ app.post('/register', async (req, res) => {
             res.status(500).json({ error: 'Registration failed' });
         }
     }
-});
-
-app.get('/check-access/*', (req, res) => {
-    // Remove /check-access from the start of the path
-    const portfolioPath = req.path.replace('/check-access', '');
-    
-    db.get('SELECT is_public, username FROM users WHERE portfolio_path = ?',
-        [portfolioPath],
-        (err, result) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error' });
-                return;
-            }
-            
-            // If portfolio is not registered, default to private
-            if (!result) {
-                res.json({ hasAccess: false });
-                return;
-            }
-
-            // If portfolio is public, allow access to everyone
-            if (result.is_public) {
-                res.json({ hasAccess: true });
-                return;
-            }
-
-            // If user is logged in
-            if (req.session?.user) {
-                // Check if the user is a parent
-                const isParent = req.session.user.username.toLowerCase().startsWith('parent-');
-                
-                if (isParent) {
-                    // Get the student's name from parent's username (after 'parent-')
-                    const childName = req.session.user.username.substring('parent-'.length);
-                    // Parents can only see public portfolios and their child's portfolio
-                    const hasAccess = result.username === childName;
-                    res.json({ hasAccess });
-                    return;
-                }
-
-                // For students, check if they own the portfolio
-                db.get('SELECT username FROM users WHERE id = ?', [req.session.user.id], (err, user) => {
-                    if (err) {
-                        res.status(500).json({ error: 'Database error' });
-                        return;
-                    }
-                    
-                    // Allow access if user owns the portfolio
-                    const hasAccess = user && result.username === user.username;
-                    res.json({ hasAccess });
-                });
-            } else {
-                // Not logged in, only allow access to public portfolios
-                res.json({ hasAccess: result.is_public });
-            }
-        });
 });
 
 // Serve the main pages
