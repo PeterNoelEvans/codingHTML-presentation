@@ -14,6 +14,7 @@ const { schools } = require('./config/schools');
 
 // Use environment variables or defaults
 const port = process.env.PORT || 10000;
+const host = '0.0.0.0'; // Listen on all network interfaces
 const isProduction = process.env.NODE_ENV === 'production';
 console.log('Running in', isProduction ? 'production mode' : 'development mode');
 
@@ -697,13 +698,16 @@ async function initializeApp() {
             res.status(200).json(health);
         });
 
-        // Create server instance
-        app.server = app.listen(port, () => {
+        // Create server instance with proper error handling
+        app.server = app.listen(port, host, () => {
             console.log('\n=== Server Information ===');
-            console.log(`Server running on: http://localhost:${port}`);
+            console.log(`Server running on: http://${host}:${port}`);
             console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
             console.log(`Session length: ${sessionConfig.cookie.maxAge / (24 * 60 * 60 * 1000)} days`);
             console.log('=========================\n');
+        }).on('error', (err) => {
+            console.error('Server failed to start:', err);
+            process.exit(1);
         });
 
     } catch (err) {
@@ -2225,4 +2229,10 @@ app.use((err, req, res, next) => {
 app.use((req, res) => {
     console.log('404 Not Found:', req.path);
     res.status(404).send('File not found');
+});
+
+// Add HEAD request handler for health checks
+app.head('*', (req, res) => {
+    console.log('Received HEAD request for:', req.url);
+    res.status(200).end();
 });
