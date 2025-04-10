@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const app = express();
@@ -10,6 +10,7 @@ require('dotenv').config();
 
 const CredentialManager = require('./utils/credentialManager');
 const StudentManager = require('./utils/studentManager');
+const { schools } = require('./config/schools');
 
 // Use environment variables or defaults
 const port = process.env.PORT || 10000;
@@ -789,7 +790,7 @@ process.on('SIGTERM', () => {
 
 // Routes
 app.post('/register', async (req, res) => {
-    const { username, password, portfolio_path } = req.body;
+    const { username, password, portfolio_path, school, class: classId } = req.body;
 
     // Validate input
     if (!username || !password || !portfolio_path) {
@@ -797,6 +798,25 @@ app.post('/register', async (req, res) => {
     }
 
     try {
+        // Validate school and class if provided
+        if (school && classId) {
+            const schoolConfig = schools.find(s => s.id === school);
+            if (!schoolConfig) {
+                return res.status(400).json({ error: 'Invalid school selected' });
+            }
+            
+            const classConfig = schoolConfig.classes.find(c => c.id === classId);
+            if (!classConfig) {
+                return res.status(400).json({ error: 'Invalid class selected' });
+            }
+
+            // Validate portfolio path matches school/class structure
+            const expectedPathPattern = `/portfolios/${school}/classes/${classId}/`;
+            if (!portfolio_path.startsWith(expectedPathPattern)) {
+                return res.status(400).json({ error: 'Invalid portfolio path for selected school and class' });
+            }
+        }
+
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
         
@@ -831,29 +851,31 @@ app.post('/register', async (req, res) => {
             username,
             portfolio_path,
             avatar_path,
-            is_public: false
+            is_public: false,
+            school,
+            class: classId
         };
-        
-        // Update last login time
-        await new Promise((resolve, reject) => {
-            db.run(
-                'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-                [result],
-                function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                }
-            );
-        });
 
-        res.json({ 
-            success: true, 
-            message: 'Registration successful',
-            redirect: '/dashboard'
-        });
+        // Create necessary directories
+        const portfolioFullPath = path.join(__dirname, portfolio_path);
+        const imagesDir = path.join(portfolioFullPath, 'images');
+        
+        try {
+            await fs.promises.mkdir(path.dirname(portfolioFullPath), { recursive: true });
+            await fs.promises.mkdir(imagesDir, { recursive: true });
+        } catch (err) {
+            console.error('Error creating directories:', err);
+            // Don't fail registration if directory creation fails
+        }
+
+        res.json({ success: true });
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(500).json({ error: error.message || 'Error creating user' });
+        if (error.message === 'Username already taken') {
+            res.status(400).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'Registration failed' });
+        }
     }
 });
 

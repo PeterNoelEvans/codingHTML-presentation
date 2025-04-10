@@ -293,9 +293,15 @@
                 if (!response.ok) {
                     errorDiv.textContent = data.error || 'Registration failed';
                     errorDiv.style.display = 'block';
-                } else if (data.success) {
+                    return;
+                }
+                
+                if (data.success) {
                     alert('Registration successful! Please log in with your new account.');
                     window.location.href = '/login.html';
+                } else {
+                    errorDiv.textContent = data.error || 'Registration failed';
+                    errorDiv.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Registration error:', error);
