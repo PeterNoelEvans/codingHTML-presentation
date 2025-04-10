@@ -62,7 +62,6 @@
                 portfolios === 'portfolios' &&
                 classes === 'classes' &&
                 file === `${username}.html` &&
-                // Updated regex to allow capital first letter
                 username.match(/^[A-Z][a-z]*_\d+_\d{3}$/)
             );
         }
