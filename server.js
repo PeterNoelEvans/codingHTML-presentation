@@ -280,10 +280,12 @@ async function initializeApp() {
 
         // Then handle portfolio HTML files with authentication
         app.get('/portfolios/*', async (req, res, next) => {
-            const portfolioPath = req.path;
+            // Remove trailing slash if present
+            const portfolioPath = req.path.replace(/\/$/, '');
             
             console.log('\n=== Portfolio Access Debug ===');
-            console.log('Requested path:', portfolioPath);
+            console.log('Original path:', req.path);
+            console.log('Normalized path:', portfolioPath);
             console.log('Full path:', path.join(__dirname, portfolioPath));
             
             // Check if file exists
@@ -319,14 +321,14 @@ async function initializeApp() {
                         const studentName = pathParts[studentIndex];
                         const portfolioHtmlPath = pathParts.slice(0, studentIndex + 1).join('/') + `/${studentName}.html`;
 
-            try {
-                const db = new sqlite3.Database(dbPath);
-                const portfolio = await new Promise((resolve, reject) => {
+                        try {
+                            const db = new sqlite3.Database(dbPath);
+                            const portfolio = await new Promise((resolve, reject) => {
                                 db.get('SELECT is_public FROM users WHERE portfolio_path = ?', [portfolioHtmlPath], (err, row) => {
-                            if (err) reject(err);
-                            else resolve(row);
-                        });
-                });
+                                    if (err) reject(err);
+                                    else resolve(row);
+                                });
+                            });
 
                             const isAuthenticated = req.session?.authenticated || !!req.session?.user;
                             const isVisitor = req.session?.userType === 'visitor';
@@ -407,18 +409,18 @@ async function initializeApp() {
                     }
 
                     const isPublic = portfolio.is_public === 1;
-                    const portfolioPath = portfolio.portfolio_path;
+                    const portfolioPathFromDb = portfolio.portfolio_path;
 
-                    if (isPublic || (isAuthenticated && (req.session?.user?.username === portfolioPath.split('/').pop() || !isVisitor))) {
+                    if (isPublic || (isAuthenticated && (req.session?.user?.username === portfolioPathFromDb.split('/').pop() || !isVisitor))) {
                         return next();
                     }
 
                     return res.status(403).send('Access denied');
-            } catch (error) {
-                console.error('Error checking portfolio access:', error);
+                } catch (error) {
+                    console.error('Error checking portfolio access:', error);
                     return res.status(500).send('Internal server error');
-            } finally {
-                db.close();
+                } finally {
+                    db.close();
                 }
             } catch (error) {
                 console.error('Error checking portfolio access:', error);
@@ -1325,137 +1327,5 @@ app.get('/api/classes/:classId/students', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     } finally {
         db.close();
-    }
-});
-
-// Protected portfolio access
-app.get('/portfolios/*', async (req, res, next) => {
-    const portfolioPath = req.path;
-    
-    // Skip access control for images in class viewer context
-    if (req.headers.referer && 
-        (req.headers.referer.includes('/class-viewer.html') || 
-         req.headers.referer.includes('/classes?') ||
-         req.headers.referer.includes('/class-4-1.html') ||
-         req.headers.referer.includes('/class-4-2.html'))) {
-        return next();
-    }
-    
-    // Check if this is a static file request (images, css, js, etc)
-    const staticFileExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.css', '.js', '.webp', '.ico', '.svg'];
-    if (staticFileExtensions.some(ext => portfolioPath.toLowerCase().endsWith(ext))) {
-        // For images in the images directory, we need to check portfolio access
-        if (portfolioPath.includes('/images/')) {
-            // Extract the portfolio path from the image path
-            const pathParts = portfolioPath.split('/');
-            const studentIndex = pathParts.indexOf('images') - 1;
-            if (studentIndex > 0) {
-                const studentName = pathParts[studentIndex];
-                const portfolioHtmlPath = pathParts.slice(0, studentIndex + 1).join('/') + `/${studentName}.html`;
-                
-                try {
-                    const db = new sqlite3.Database(dbPath);
-                    const portfolio = await new Promise((resolve, reject) => {
-                        db.get('SELECT is_public FROM users WHERE portfolio_path = ?', [portfolioHtmlPath], (err, row) => {
-                            if (err) reject(err);
-                            else resolve(row);
-                        });
-                    });
-                    
-                    const isAuthenticated = req.session?.authenticated || !!req.session?.user;
-                    const isVisitor = req.session?.userType === 'visitor';
-                    const isOwnPortfolio = req.session?.user?.username === studentName;
-                    
-                    if (portfolio?.is_public === 1 || (isAuthenticated && (isOwnPortfolio || !isVisitor))) {
-                        return next();
-                    }
-                    
-                    return res.status(403).send('Access denied');
-            } catch (error) {
-                    console.error('Error checking image access:', error);
-                    return res.status(500).send('Internal server error');
-                } finally {
-                    db.close();
-                }
-            }
-        }
-        // For other static files (css, js, etc), allow access
-        return next();
-    }
-    
-    console.log('\n=== Portfolio Access Attempt ===');
-    console.log('Accessing portfolio:', portfolioPath);
-    console.log('Current directory:', __dirname);
-    console.log('Session:', req.session);
-    console.log('User type:', req.session?.userType);
-    console.log('Visitor ID:', req.session?.visitorId);
-
-    try {
-        // First check if the portfolios directory exists
-        const portfoliosDir = path.join(__dirname, 'portfolios');
-        if (!fs.existsSync(portfoliosDir)) {
-            console.log('Portfolios directory does not exist:', portfoliosDir);
-            fs.mkdirSync(portfoliosDir, { recursive: true });
-            console.log('Created portfolios directory');
-        }
-
-        // Get all schools from configuration
-        const schools = schoolConfig.getSchools();
-        
-        // Create school and class directories
-        schools.forEach(school => {
-            const schoolDir = path.join(portfoliosDir, school.id);
-            console.log(`Creating school directory: ${schoolDir}`);
-            fs.mkdirSync(schoolDir, { recursive: true });
-            
-            const classesDir = path.join(schoolDir, 'classes');
-            console.log(`Creating classes directory: ${classesDir}`);
-            fs.mkdirSync(classesDir, { recursive: true });
-            
-            school.classes.forEach(cls => {
-                const classDir = path.join(classesDir, cls.id);
-                console.log(`Creating class directory: ${classDir}`);
-                fs.mkdirSync(classDir, { recursive: true });
-            });
-        });
-
-        // Check access based on user type and authentication status
-        const isAuthenticated = req.session?.authenticated || !!req.session?.user;
-        const isVisitor = req.session?.userType === 'visitor';
-        console.log('Access status:', { isAuthenticated, isVisitor });
-
-        // Get the actual portfolio path from the database
-        const db = new sqlite3.Database(dbPath);
-        try {
-            // First try case-insensitive match
-            let portfolio = await new Promise((resolve, reject) => {
-                db.get('SELECT is_public, portfolio_path FROM users WHERE LOWER(portfolio_path) = LOWER(?)', [portfolioPath], (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                });
-            });
-
-            if (!portfolio) {
-                console.log('Portfolio not found in database');
-                return res.status(404).send('Portfolio not found');
-            }
-
-            const isPublic = portfolio.is_public === 1;
-            const portfolioPath = portfolio.portfolio_path;
-
-            if (isPublic || (isAuthenticated && (req.session?.user?.username === portfolioPath.split('/').pop() || !isVisitor))) {
-                return next();
-            }
-
-            return res.status(403).send('Access denied');
-        } catch (error) {
-            console.error('Error checking portfolio access:', error);
-            return res.status(500).send('Internal server error');
-        } finally {
-            db.close();
-        }
-    } catch (error) {
-        console.error('Error checking portfolio access:', error);
-        return res.status(500).send('Internal server error');
     }
 });

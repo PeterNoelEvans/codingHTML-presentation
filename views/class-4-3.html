@@ -122,6 +122,29 @@
 
         // Load portfolios when page loads
         document.addEventListener('DOMContentLoaded', loadPortfolios);
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/check-auth', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('Auth check failed:', response.status);
+                    return { authenticated: false };
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Auth check error:', error);
+                return { authenticated: false };
+            }
+        }
     </script>
 </body>
 </html> 

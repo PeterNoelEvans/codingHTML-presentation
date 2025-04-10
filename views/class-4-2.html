@@ -135,25 +135,24 @@
         // Function to check authentication status
         async function checkAuth() {
             try {
-                const response = await fetch('/check-session', {
+                const response = await fetch('/check-auth', {
+                    method: 'GET',
                     credentials: 'include',
                     headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
+                        'Cache-Control': 'no-cache'
                     }
                 });
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    console.error('Auth check failed:', response.status);
+                    return { authenticated: false };
                 }
+
                 const data = await response.json();
-                console.log('Auth check result:', data);
-                return {
-                    isAuthenticated: data.authenticated,
-                    userType: data.userType
-                };
+                return data;
             } catch (error) {
-                console.error('Error checking auth:', error);
-                return { isAuthenticated: false, userType: null };
+                console.error('Auth check error:', error);
+                return { authenticated: false };
             }
         }
         
@@ -235,7 +234,7 @@
                 
                 const loginPrompt = document.getElementById('loginPrompt');
                 if (loginPrompt) {
-                    loginPrompt.style.display = auth.isAuthenticated ? 'none' : 'block';
+                    loginPrompt.style.display = auth.authenticated ? 'none' : 'block';
                 }
                 
                 const response = await fetch('/api/phumdham-students/P4-2', {
@@ -258,7 +257,7 @@
                 }
                 
                 const visiblePortfolios = students.filter(student => 
-                    student && (student.is_public || auth.isAuthenticated)
+                    student && (student.is_public || auth.authenticated)
                 );
                 
                 if (visiblePortfolios.length === 0) {

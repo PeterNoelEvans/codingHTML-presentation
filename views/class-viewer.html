@@ -470,16 +470,24 @@
         // Function to check authentication status
         async function checkAuth() {
             try {
-                const response = await fetch('/check-session');
+                const response = await fetch('/check-auth', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('Auth check failed:', response.status);
+                    return { authenticated: false };
+                }
+
                 const data = await response.json();
-                return {
-                    authenticated: data.authenticated || !!data.user,
-                    isVisitor: data.user?.userType === 'visitor' || data.userType === 'visitor',
-                    fullName: data.user?.fullName || data.fullName
-                };
+                return data;
             } catch (error) {
-                console.error('Error checking auth:', error);
-                return { authenticated: false, isVisitor: false };
+                console.error('Auth check error:', error);
+                return { authenticated: false };
             }
         }
 
