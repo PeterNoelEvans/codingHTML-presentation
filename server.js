@@ -202,142 +202,102 @@ async function initializeApp() {
             }
         }));
 
-        // Portfolio access control middleware - MUST come before static file serving
-        app.use('/portfolios', async (req, res, next) => {
-            console.log('\n=== DETAILED PORTFOLIO ACCESS DEBUG ===');
-            console.log('1. Request Details:');
-            console.log('   Path:', req.path);
-            console.log('   Method:', req.method);
-            console.log('   Referer:', req.headers.referer);
-            console.log('   User Agent:', req.headers['user-agent']);
-            console.log('   Session:', JSON.stringify(req.session, null, 2));
-
-            // Check if file exists physically
-            const fullPath = path.join(__dirname, 'portfolios', req.path);
-            console.log('2. File System Check:');
-            console.log('   Full file path:', fullPath);
-            console.log('   File exists:', fs.existsSync(fullPath));
-
-            // Skip access control for static files
-            const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
+        // Serve public static files first (images, css, js)
+        app.use('/portfolios', (req, res, next) => {
+            // Check if this is a static file request (images, css, js, etc)
+            const staticFileExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.css', '.js', '.webp', '.ico', '.svg'];
+            const isStaticFile = staticFileExtensions.some(ext => req.path.toLowerCase().endsWith(ext));
+            
             if (isStaticFile) {
-                console.log('3. Access Control Skipped: Static file detected');
+                // For images in student folders, check if they're from class viewer
+                if (req.path.includes('/images/') && !req.headers.referer?.includes('/class-viewer.html')) {
+                    // Extract student name from path for access control
+                    const pathParts = req.path.split('/');
+                    const studentIndex = pathParts.indexOf('images') - 1;
+                    if (studentIndex > 0) {
+                        // Allow access to images if coming from class viewer or portfolio is public
+                        if (req.headers.referer && 
+                            (req.headers.referer.includes('/class-viewer.html') || 
+                             req.headers.referer.includes('/classes?') ||
+                             req.headers.referer.includes('/class-4-1.html') ||
+                             req.headers.referer.includes('/class-4-2.html'))) {
+                            return express.static(path.join(__dirname, 'portfolios'))(req, res, next);
+                        }
+                    }
+                }
+                // For all other static files, serve directly
+                return express.static(path.join(__dirname, 'portfolios'), {
+                    dotfiles: 'allow',
+                    etag: true,
+                    maxAge: '1d',
+                    setHeaders: (res, path, stat) => {
+                        // Set proper content type for images
+                        const ext = path.toLowerCase().split('.').pop();
+                        const contentTypes = {
+                            'png': 'image/png',
+                            'jpg': 'image/jpeg',
+                            'jpeg': 'image/jpeg',
+                            'gif': 'image/gif',
+                            'webp': 'image/webp',
+                            'svg': 'image/svg+xml'
+                        };
+                        if (contentTypes[ext]) {
+                            res.set('Content-Type', contentTypes[ext]);
+                        }
+                        // Prevent caching for images
+                        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                        res.set('Pragma', 'no-cache');
+                        res.set('Expires', '0');
+                    }
+                })(req, res, next);
+            }
+            next();
+        });
+
+        // Then handle portfolio HTML files with authentication
+        app.get('/portfolios/*', async (req, res, next) => {
+            // Skip if not an HTML file request
+            if (!req.path.endsWith('.html')) {
                 return next();
             }
 
-            // Skip access control for class viewer requests
-            if (req.headers.referer && 
-                (req.headers.referer.includes('/class-viewer.html') || 
-                 req.headers.referer.includes('/classes?') ||
-                 req.headers.referer.includes('/class-4-1.html') ||
-                 req.headers.referer.includes('/class-4-2.html'))) {
-                console.log('3. Access Control Skipped: Coming from class viewer');
-                return next();
-            }
+            console.log('\n=== Portfolio HTML Access Check ===');
+            console.log('Path:', req.path);
+            console.log('Session:', req.session);
 
-            console.log('3. Proceeding with access control (not skipped)');
-
-            // For HTML files, proceed with database access control
-            const db = new sqlite3.Database(dbPath);
             try {
+                const db = new sqlite3.Database(dbPath);
                 // Extract username from path
                 const pathParts = req.path.split('/');
-                console.log('4. Path Analysis:');
-                console.log('   Full path parts:', pathParts);
-                const username = pathParts[pathParts.length - 2]; // Get the folder name instead of HTML file
-                console.log('   Extracted username:', username);
-
-                // Get portfolio access status using case-insensitive username match
-                console.log('5. Database Query:');
-                console.log('   Looking up username:', username);
+                const username = pathParts[pathParts.length - 2]; // Get the folder name
+                
+                // Get portfolio access status
                 const portfolio = await new Promise((resolve, reject) => {
-                    const query = `
-                        SELECT 
-                            username,
-                            portfolio_path,
-                            is_public,
-                            is_super_user
-                        FROM users 
-                        WHERE LOWER(username) = LOWER(?)
-                        GROUP BY LOWER(username)
-                    `;
-                    console.log('   Query:', query.replace(/\s+/g, ' '));
-                    
-                    db.get(query, [username], (err, row) => {
-                        if (err) {
-                            console.log('   Database error:', err);
-                            reject(err);
-                        } else {
-                            console.log('   Database result:', row);
-                            resolve(row);
-                        }
-                    });
+                    db.get('SELECT username, is_public FROM users WHERE LOWER(username) = LOWER(?)', 
+                        [username], 
+                        (err, row) => {
+                            if (err) reject(err);
+                            else resolve(row);
+                        });
                 });
 
-                console.log('6. Access Control Decision:');
-                if (!portfolio) {
-                    console.log('   Result: Portfolio not found in database');
-                    return res.status(404).send('Portfolio not found');
-                }
-
-                // Check if user is authenticated
+                // Check access conditions
                 const isAuthenticated = req.session && req.session.user;
-                console.log('   Authentication status:', isAuthenticated);
-                if (isAuthenticated) {
-                    console.log('   Session user:', req.session.user);
-                }
+                const isPublic = portfolio && portfolio.is_public === 1;
                 
-                // Convert is_public to number and use strict comparison
-                const isPublic = Number(portfolio.is_public) === 1;
-                console.log('   Portfolio public status:', isPublic);
-                
-                // Allow access if portfolio is public or user is authenticated
                 if (isPublic || isAuthenticated) {
-                    console.log('   Decision: Access granted');
-                    console.log('   Reason:', isPublic ? 'Portfolio is public' : 'User is authenticated');
-                    next();
+                    // Serve the file
+                    return express.static(path.join(__dirname, 'portfolios'))(req, res, next);
                 } else {
-                    console.log('   Decision: Access denied');
-                    console.log('   Reason: Portfolio is private and user is not authenticated');
                     res.status(403).send('Access denied');
                 }
             } catch (error) {
-                console.error('7. Error in portfolio access middleware:', error);
+                console.error('Error checking portfolio access:', error);
                 res.status(500).send('Internal server error');
             } finally {
                 db.close();
             }
         });
-
-        // Then serve static files from portfolios directory
-        app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
-            dotfiles: 'allow',
-            etag: true,
-            extensions: ['htm', 'html', 'png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'gif', 'GIF', 'mp4', 'webp', 'ico', 'svg'],
-            index: false,
-            maxAge: '1d',
-            redirect: false,
-            setHeaders: function (res, path, stat) {
-                // Set proper content type for images based on case-insensitive extension
-                const ext = path.toLowerCase().split('.').pop();
-                if (ext === 'png') {
-                    res.set('Content-Type', 'image/png');
-                } else if (ext === 'jpg' || ext === 'jpeg') {
-                    res.set('Content-Type', 'image/jpeg');
-                } else if (ext === 'gif') {
-                    res.set('Content-Type', 'image/gif');
-                } else if (ext === 'webp') {
-                    res.set('Content-Type', 'image/webp');
-                } else if (ext === 'svg') {
-                    res.set('Content-Type', 'image/svg+xml');
-                }
-                
-                // Prevent caching for images
-                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-                res.set('Pragma', 'no-cache');
-                res.set('Expires', '0');
-            }
-        }));
 
         // Rate limiting for login attempts
         const rateLimit = require('express-rate-limit');
