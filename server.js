@@ -70,6 +70,15 @@ const schoolConfig = require('./config/schools');
 // Initialize application
 async function initializeApp() {
     console.log('Initializing application...');
+
+    // Copy portfolio files
+    try {
+        require('./scripts/copy-portfolios');
+        console.log('Portfolio files copied successfully');
+    } catch (error) {
+        console.error('Error copying portfolio files:', error);
+    }
+
     try {
         // Essential middleware first
         app.use(express.json());
