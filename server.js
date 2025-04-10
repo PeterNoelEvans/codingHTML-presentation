@@ -77,11 +77,11 @@ async function initializeApp() {
         
         // Serve utility files
         app.use('/utils', express.static(path.join(__dirname, 'utils'), {
-            dotfiles: 'allow',
+            dotfiles: 'ignore',
             etag: true,
             extensions: ['js'],
             maxAge: '1d',
-            setHeaders: function (res, path, stat) {
+            setHeaders: (res, path, stat) => {
                 res.set('Content-Type', 'application/javascript');
                 res.set('Cache-Control', 'public, max-age=86400');
             }
