@@ -73,6 +73,14 @@ async function initializeApp() {
     console.log('Initializing application...');
 
     try {
+        // Copy portfolio files
+        try {
+            require('./scripts/copy-portfolios');
+            console.log('Portfolio files copied successfully');
+        } catch (error) {
+            console.error('Error copying portfolio files:', error);
+        }
+
         // Essential middleware first
         app.use(express.json());
         app.use(express.urlencoded({ extended: true }));
@@ -1287,26 +1295,20 @@ app.get('/portfolios/*', async (req, res, next) => {
         // Get all schools from configuration
         const schools = schoolConfig.getSchools();
         
-        // Create school and class directories if they don't exist
+        // Create school and class directories
         schools.forEach(school => {
             const schoolDir = path.join(portfoliosDir, school.id);
-            if (!fs.existsSync(schoolDir)) {
-                console.log(`Creating school directory: ${schoolDir}`);
-                fs.mkdirSync(schoolDir, { recursive: true });
-            }
+            console.log(`Creating school directory: ${schoolDir}`);
+            fs.mkdirSync(schoolDir, { recursive: true });
             
             const classesDir = path.join(schoolDir, 'classes');
-            if (!fs.existsSync(classesDir)) {
-                console.log(`Creating classes directory: ${classesDir}`);
-                fs.mkdirSync(classesDir, { recursive: true });
-            }
+            console.log(`Creating classes directory: ${classesDir}`);
+            fs.mkdirSync(classesDir, { recursive: true });
             
             school.classes.forEach(cls => {
                 const classDir = path.join(classesDir, cls.id);
-                if (!fs.existsSync(classDir)) {
-                    console.log(`Creating class directory: ${classDir}`);
-                    fs.mkdirSync(classDir, { recursive: true });
-                }
+                console.log(`Creating class directory: ${classDir}`);
+                fs.mkdirSync(classDir, { recursive: true });
             });
         });
 

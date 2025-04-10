@@ -102,6 +102,13 @@ const schools = [
         displayName: 'Class 4/2',
         description: 'Grade 4/2 Coding Class',
         portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-2'
+      },
+      {
+        id: 'P4-3',
+        name: 'Class 4/3',
+        displayName: 'Class 4/3',
+        description: 'Grade 4/3 Coding Class',
+        portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-3'
       }
     ]
   }
@@ -181,7 +188,7 @@ const schools = [
   },
   {
     id: 'PhumdhamPrimary',
-    classes: ['P4-1', 'P4-2']
+    classes: ['P4-1', 'P4-2', 'P4-3']
   }
 ];
 

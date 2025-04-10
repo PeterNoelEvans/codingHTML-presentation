@@ -58,6 +58,8 @@ const schools = [
       {
         id: 'P4-3',
         name: 'Class 4/3',
+        displayName: 'Class 4/3',
+        description: 'Grade 4/3 Coding Class',
         portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-3'
       }
     ]
