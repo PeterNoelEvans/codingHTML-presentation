@@ -1,21 +1,21 @@
+// Browser-compatible module definition
 (function(root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD
         define(['exports'], factory);
     } else if (typeof exports === 'object' && typeof module === 'object') {
         // CommonJS
-        factory(exports);
+        const schoolConfig = require('../config/schools');
+        module.exports = factory(schoolConfig);
     } else {
         // Browser globals
-        root.PathManager = factory({});
+        root.PathManager = factory(root.schoolConfig || {
+            schools: [],
+            getSchool: () => null,
+            getClass: () => null
+        });
     }
-}(typeof self !== 'undefined' ? self : this, function(exports) {
-    // Load schoolConfig in Node.js environment only
-    let schoolConfig;
-    if (typeof require !== 'undefined') {
-        schoolConfig = require('../config/schools');
-    }
-
+}(typeof self !== 'undefined' ? self : this, function(schoolConfig) {
     class PathManager {
         static formatUsername(username) {
             // If already in correct format, return as is but ensure proper capitalization
@@ -37,23 +37,6 @@
         }
 
         static getPortfolioPath(schoolId, classId, username) {
-            // In browser environment, just construct the path without validation
-            if (typeof require === 'undefined') {
-                const formattedUsername = this.formatUsername(username);
-                return `/portfolios/${schoolId}/classes/${classId}/${formattedUsername}/${formattedUsername}.html`;
-            }
-
-            // In Node.js environment, validate against schoolConfig
-            const school = schoolConfig.schools.find(s => s.id === schoolId);
-            if (!school) {
-                throw new Error(`School ${schoolId} not found`);
-            }
-
-            const classConfig = school.classes.find(c => c.id === classId);
-            if (!classConfig) {
-                throw new Error(`Class ${classId} not found in school ${schoolId}`);
-            }
-
             const formattedUsername = this.formatUsername(username);
             return `/portfolios/${schoolId}/classes/${classId}/${formattedUsername}/${formattedUsername}.html`;
         }
@@ -64,22 +47,6 @@
         }
 
         static getClassBasePath(schoolId, classId) {
-            // In browser environment, just construct the path without validation
-            if (typeof require === 'undefined') {
-                return `/portfolios/${schoolId}/classes/${classId}`;
-            }
-
-            // In Node.js environment, validate against schoolConfig
-            const school = schoolConfig.schools.find(s => s.id === schoolId);
-            if (!school) {
-                throw new Error(`School ${schoolId} not found`);
-            }
-
-            const classConfig = school.classes.find(c => c.id === classId);
-            if (!classConfig) {
-                throw new Error(`Class ${classId} not found in school ${schoolId}`);
-            }
-
             return `/portfolios/${schoolId}/classes/${classId}`;
         }
 
