@@ -508,6 +508,25 @@ async function initializeApp() {
             res.sendFile(path.join(__dirname, 'dashboard.html'));
         });
 
+        // Check authentication status endpoint
+        app.get('/check-auth', (req, res) => {
+            console.log('\n=== Auth Check ===');
+            console.log('Session:', req.session);
+            console.log('User:', req.session?.user);
+            
+            if (req.session && req.session.user) {
+                res.json({
+                    authenticated: true,
+                    username: req.session.user.username,
+                    portfolio_path: req.session.user.portfolio_path
+                });
+            } else {
+                res.json({
+                    authenticated: false
+                });
+            }
+        });
+
         app.post('/toggle-privacy', requireAuth, async (req, res) => {
             try {
                 const userId = req.session.user.id;
