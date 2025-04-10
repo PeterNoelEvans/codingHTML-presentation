@@ -164,14 +164,14 @@
     <h1 id="classTitle">Class Portfolios</h1>
     
     <div class="navigation-links" style="text-align: center; margin-bottom: 20px;">
-        <a href="/dashboard.html" class="nav-button">Back to Dashboard</a>
+        <a href="/schools.html" class="nav-button" id="backButton">Back to Schools</a>
     </div>
 
     <!-- Login Button - Show when not logged in -->
-    <button id="loginButton" class="login-button">Login</button>
+    <button id="loginButton" class="login-button" style="display: none;">Login</button>
     
     <!-- User Info - Show when logged in -->
-    <div id="userInfo" class="user-info">
+    <div id="userInfo" class="user-info" style="display: none;">
         Logged in as <span id="username"></span>
         <button id="logoutButton" class="logout-button">Logout</button>
     </div>
@@ -229,41 +229,50 @@
                 
                 // If URL has parameters, use them instead of stored values
                 if (schoolParam && classParam) {
+                    // First verify these values exist in our configuration
+                    const schoolResponse = await fetch(`/api/schools/${schoolParam}`);
+                    if (!schoolResponse.ok) {
+                        throw new Error(`School ${schoolParam} not found`);
+                    }
+                    const school = await schoolResponse.json();
+                    
+                    // Find the class in the school's classes
+                    const classExists = school.classes.some(c => c.id === classParam);
+                    if (!classExists) {
+                        throw new Error(`Class ${classParam} not found in school ${schoolParam}`);
+                    }
+                    
                     currentSchoolId = schoolParam;
                     currentClassId = classParam;
                     localStorage.setItem('selectedSchoolId', currentSchoolId);
                     localStorage.setItem('selectedClassId', currentClassId);
-                    console.log('Using URL parameters:', { school: currentSchoolId, class: currentClassId });
+                    console.log('Using validated URL parameters:', { school: currentSchoolId, class: currentClassId });
                     return;
                 }
                 
-                // Check if the stored school exists
+                // If no URL parameters, validate stored values
                 const schoolResponse = await fetch(`/api/schools/${currentSchoolId}`);
                 if (!schoolResponse.ok) {
                     console.log('Stored school not found, resetting to default');
-                    currentSchoolId = 'PhumdhamPrimary';  // Changed default to Phumdham
+                    currentSchoolId = 'PhumdhamPrimary';
+                    currentClassId = 'P4-1';
                     localStorage.setItem('selectedSchoolId', currentSchoolId);
+                    localStorage.setItem('selectedClassId', currentClassId);
+                    return;
                 }
                 
-                // Check if the stored class exists in the selected school
-                const classResponse = await fetch(`/api/schools/${currentSchoolId}/classes/${currentClassId}`);
-                if (!classResponse.ok) {
-                    console.log('Stored class not found in selected school, resetting to first available class');
-                    // Get available classes for the school
-                    const classesResponse = await fetch(`/api/schools/${currentSchoolId}/classes`);
-                    const classes = await classesResponse.json();
-                    if (classes && classes.length > 0) {
-                        currentClassId = classes[0].id;
-                    } else {
-                        currentClassId = currentSchoolId === 'PhumdhamPrimary' ? 'Class4-1' : 'ClassM2-001';
-                    }
+                const school = await schoolResponse.json();
+                const classExists = school.classes.some(c => c.id === currentClassId);
+                if (!classExists) {
+                    console.log('Stored class not found in school, resetting to default class');
+                    currentClassId = school.classes[0]?.id || 'P4-1';
                     localStorage.setItem('selectedClassId', currentClassId);
                 }
             } catch (error) {
-                console.error('Error validating stored selections:', error);
-                // Reset to Phumdham defaults instead of M2
+                console.error('Error validating selections:', error);
+                // Reset to defaults on error
                 currentSchoolId = 'PhumdhamPrimary';
-                currentClassId = 'Class4-1';
+                currentClassId = 'P4-1';
                 localStorage.setItem('selectedSchoolId', currentSchoolId);
                 localStorage.setItem('selectedClassId', currentClassId);
             }
@@ -282,7 +291,7 @@
             privacyBadge.textContent = isPublic ? 'Public' : 'Private';
             
             const img = document.createElement('img');
-            img.src = imagePath || '/images/default-avatar.png';
+            img.src = imagePath ? (imagePath.startsWith('/') ? imagePath : '/' + imagePath) : '/images/default-avatar.png';
             img.alt = `${username}'s avatar`;
             img.className = 'avatar';
             img.onerror = function() {
@@ -305,21 +314,22 @@
             classIndicator.style.marginTop = '5px';
             classIndicator.style.color = '#666';
             classIndicator.style.fontSize = '0.9em';
-            // Update class indicator to handle M2 class
-            if (portfolioPath.includes('/P4-1/')) {
-                classIndicator.textContent = 'Class 4/1';
-            } else if (portfolioPath.includes('/P4-2/')) {
-                classIndicator.textContent = 'Class 4/2';
-            } else if (portfolioPath.includes('/M2-001/')) {
-                classIndicator.textContent = 'M2 2025';
-            } else {
-                classIndicator.textContent = 'Unknown Class';
+            // Update class indicator to handle all classes
+            let classLabel = '';
+            if (portfolioPath.includes('/PhumdhamPrimary/classes/P4-1/')) {
+                classLabel = 'P4/1';
+            } else if (portfolioPath.includes('/PhumdhamPrimary/classes/P4-2/')) {
+                classLabel = 'P4/2';
+            } else if (portfolioPath.includes('/PBSChonburi/classes/M2-001/')) {
+                classLabel = 'M2 2025';
             }
+            
+            classIndicator.textContent = classLabel || 'Unknown Class';
             
             const viewBtn = document.createElement('a');
             viewBtn.className = 'view-portfolio';
             viewBtn.textContent = 'View Portfolio';
-            viewBtn.href = portfolioPath;
+            viewBtn.href = portfolioPath.startsWith('/') ? portfolioPath : '/' + portfolioPath;
             
             if (!isPublic) {
                 viewBtn.textContent = 'Private Portfolio';
@@ -419,24 +429,14 @@
                         document.getElementById('classTitle').textContent = `${cls.displayName} Portfolios`;
                         document.title = `${cls.displayName} Portfolios`;
                         
-                        // Special handling for Class 4/1 and 4/2
-                        if (cls.id === 'P4-1') {
-                            window.location.href = '/class-4-1.html';
-                            return;
-                        }
-                        if (cls.id === 'P4-2') {
-                            window.location.href = '/class-4-2.html';
-                            return;
-                        }
-                        
-                        // Load portfolios for other classes
-                        loadPortfolios(schoolId, currentClassId);
+                        // Load portfolios for the class
+                        loadPortfolios();
                     });
                     classButtonsContainer.appendChild(button);
                 });
                 
                 // Load portfolios for the current class
-                await loadPortfolios(schoolId, currentClassId);
+                await loadPortfolios();
             } catch (error) {
                 console.error('Error loading classes:', error);
             }
@@ -461,16 +461,6 @@
                 url.searchParams.set('school', schoolId);
                 url.searchParams.set('class', currentClassId);
                 window.history.pushState({}, '', url.toString());
-                
-                // Special handling for Class 4/1 and 4/2
-                if (currentClassId === 'P4-1') {
-                    window.location.href = '/class-4-1.html';
-                    return;
-                }
-                if (currentClassId === 'P4-2') {
-                    window.location.href = '/class-4-2.html';
-                    return;
-                }
             }
             
             // Load classes for the selected school
@@ -494,89 +484,73 @@
         }
 
         // Function to load portfolios
-        async function loadPortfolios(schoolId, classId) {
+        async function loadPortfolios() {
             try {
-                // First check authentication status
-                const authResponse = await fetch('/check-session');
-                const authData = await authResponse.json();
-                const isVisitor = authData.user?.userType === 'visitor' || authData.userType === 'visitor';
-                const isAuthenticated = authData.authenticated || !!authData.user;
+                console.log('Loading portfolios for:', { school: currentSchoolId, class: currentClassId });
                 
-                console.log('Auth status:', authData);
-                console.log('Is visitor:', isVisitor);
-                console.log('Is authenticated:', isAuthenticated);
-                
-                // Clear existing content
+                // Show loading state
                 const container = document.getElementById('portfoliosContainer');
-                container.innerHTML = '';
+                container.innerHTML = '<div class="loading">Loading portfolios...</div>';
                 
-                // Update page title
-                const classResponse = await fetch(`/api/schools/${schoolId}/classes/${classId}`);
-                const classData = await classResponse.json();
-                document.getElementById('classTitle').textContent = `${classData.displayName} Portfolios`;
-                
-                // Determine which API endpoint to use based on the class
-                let apiUrl;
-                if (classId === 'P4-1' || classId === 'P4-2') {
-                    apiUrl = `/api/phumdham-students/${classId}`;
-                } else if (classId === 'M2-001') {
-                    apiUrl = '/api/m2-students';
-                } else {
-                    apiUrl = `/api/classes/${classId}/students?portfolioPath=/portfolios/${classId}`;
+                // Get the class configuration first
+                const classConfig = await fetch(`/api/schools/${currentSchoolId}/classes/${currentClassId}`).then(r => r.json());
+                if (!classConfig) {
+                    throw new Error('Class configuration not found');
                 }
                 
-                const response = await fetch(apiUrl);
+                // Get students for this class
+                const response = await fetch(`/api/classes/${currentClassId}/students?portfolioPath=${classConfig.portfolioPath}`);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch portfolios: ${response.status}`);
                 }
                 
                 const students = await response.json();
-                console.log(`Loaded ${students.length} students`);
+                console.log(`Loaded ${students.length} portfolios`);
+                
+                // Clear loading state
+                container.innerHTML = '';
+                
+                if (students.length === 0) {
+                    container.innerHTML = '<div class="no-portfolios">No portfolios found for this class.</div>';
+                    return;
+                }
                 
                 // Sort students by username
                 students.sort((a, b) => a.username.localeCompare(b.username));
                 
-                let hasPublicPortfolios = false;
-                
+                // Create portfolio cards
                 students.forEach(student => {
-                    // For visitors and non-authenticated users, only show public portfolios
-                    if ((isVisitor || !isAuthenticated) && !student.is_public) {
-                        return; // Skip private portfolios
-                    }
-                    
-                    if (student.is_public) {
-                        hasPublicPortfolios = true;
-                    }
-                    
                     const card = createPortfolioCard(
                         student.username,
                         student.avatar_path,
                         student.is_public,
                         student.portfolio_path,
-                        student.first_name,
-                        student.last_name,
+                        student.firstName,
+                        student.lastName,
                         student.nickname
                     );
+                    
+                    // Add registration status indicator
+                    if (!student.is_registered) {
+                        const registrationStatus = document.createElement('div');
+                        registrationStatus.className = 'registration-status';
+                        registrationStatus.textContent = 'Not Registered';
+                        registrationStatus.style.color = '#999';
+                        registrationStatus.style.fontSize = '0.8em';
+                        registrationStatus.style.marginTop = '5px';
+                        card.insertBefore(registrationStatus, card.lastChild);
+                    }
+                    
                     container.appendChild(card);
                 });
                 
-                if (container.children.length === 0) {
-                    const message = document.createElement('p');
-                    message.style.textAlign = 'center';
-                    message.style.padding = '20px';
-                    if (isVisitor || !isAuthenticated) {
-                        message.textContent = hasPublicPortfolios ? 
-                            'No public portfolios available in this class.' :
-                            'Please log in to view portfolios.';
-                    } else {
-                        message.textContent = 'No portfolios available in this class.';
-                    }
-                    container.appendChild(message);
-                }
+                // Update page title
+                document.getElementById('classTitle').textContent = `${classConfig.displayName || classConfig.name} Portfolios`;
+                
             } catch (error) {
                 console.error('Error loading portfolios:', error);
                 const container = document.getElementById('portfoliosContainer');
-                container.innerHTML = `<p style="color: red; text-align: center;">Error loading portfolios: ${error.message}</p>`;
+                container.innerHTML = `<div class="error">Error loading portfolios: ${error.message}</div>`;
             }
         }
 
@@ -605,7 +579,7 @@
                     // Hide error
                     errorElement.style.display = 'none';
                     // Reload portfolios
-                    await loadPortfolios(currentSchoolId, currentClassId);
+                    await loadPortfolios();
                 } else {
                     const error = await response.json();
                     errorElement.textContent = error.error || 'Login failed';
@@ -722,61 +696,51 @@
                 
                 // Update privacy states from server data
                 const container = document.getElementById('portfoliosContainer');
-                const defaultStudents = Array.from(container.children).map(card => {
-                    const viewBtn = card.querySelector('.view-portfolio');
-                    if (!viewBtn) return null;
-                    
-                    const portfolioPath = viewBtn.getAttribute('href');
-                    if (!portfolioPath) return null;
-                    
-                    const student = {
-                        portfolio_path: portfolioPath
-                    };
-                    return student;
-                }).filter(student => student !== null);
+                const cards = Array.from(container.children);
                 
-                const studentsWithPrivacy = defaultStudents.map(student => {
-                    const isPublic = privacyStates[student.portfolio_path];
-                    console.log(`${student.username} privacy:`, isPublic);
-                    return {
-                        ...student,
-                        is_public: isPublic
-                    };
-                });
-                
-                // Update the UI
-                Array.from(container.children).forEach(card => {
+                cards.forEach(card => {
                     const viewBtn = card.querySelector('.view-portfolio');
-                    if (!viewBtn) return;
+                    const privacyBadge = card.querySelector('.privacy-badge');
+                    if (!viewBtn || !privacyBadge) return;
                     
                     const portfolioPath = viewBtn.getAttribute('href');
                     if (!portfolioPath) return;
                     
-                    const student = studentsWithPrivacy.find(s => s.portfolio_path === portfolioPath);
+                    // Get the privacy state, defaulting to false if not found
+                    const isPublic = Boolean(privacyStates[portfolioPath]);
                     
-                    if (student) {
-                        const privacyBadge = card.querySelector('.privacy-badge');
-                        if (!privacyBadge) return;
-                        
-                        // Update badge
-                        privacyBadge.className = `privacy-badge ${student.is_public ? 'public' : 'private'}`;
-                        privacyBadge.textContent = student.is_public ? 'Public' : 'Private';
-                        
-                        // Update button
-                        viewBtn.style.backgroundColor = student.is_public ? '#4CAF50' : '#999';
-                        viewBtn.style.opacity = student.is_public ? '1' : '0.7';
-                        viewBtn.textContent = student.is_public ? 'View Portfolio' : 'Private Portfolio';
-                        
-                        console.log(`Updated ${student.username} to ${student.is_public ? 'public' : 'private'}`);
-                    }
+                    // Update badge
+                    privacyBadge.className = `privacy-badge ${isPublic ? 'public' : 'private'}`;
+                    privacyBadge.textContent = isPublic ? 'Public' : 'Private';
+                    
+                    // Update button
+                    viewBtn.className = `view-portfolio ${isPublic ? 'public' : 'private'}`;
+                    viewBtn.textContent = isPublic ? 'View Portfolio' : 'Private Portfolio';
+                    viewBtn.style.backgroundColor = isPublic ? '#4CAF50' : '#999';
+                    viewBtn.style.opacity = isPublic ? '1' : '0.7';
+                    
+                    // Update click handler for private portfolios
+                    viewBtn.onclick = isPublic ? null : (e) => {
+                        e.preventDefault();
+                        const loginPrompt = document.getElementById('loginPrompt');
+                        if (loginPrompt) {
+                            loginPrompt.style.display = 'block';
+                            setTimeout(() => {
+                                loginPrompt.style.display = 'none';
+                            }, 3000);
+                        }
+                    };
+                    
+                    const username = card.querySelector('h3')?.textContent;
+                    console.log(`Updated ${username}'s portfolio to ${isPublic ? 'public' : 'private'}`);
                 });
             } catch (error) {
                 console.error('Error updating privacy states:', error);
             }
         }
         
-        // Check privacy states more frequently
-        setInterval(updatePrivacyStates, 10000); // Every 10 seconds
+        // Check privacy states less frequently (every 30 seconds)
+        setInterval(updatePrivacyStates, 30000);
         
         // Listen for privacy updates from the dashboard
         window.addEventListener('storage', (event) => {
@@ -787,20 +751,28 @@
         });
         
         // Initial update
-        updatePrivacyStates();
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePrivacyStates();
+        });
 
         // Update back button based on auth status
         async function updateBackButton() {
             const authData = await checkAuth();
             const backButton = document.getElementById('backButton');
+            const loginButton = document.getElementById('loginButton');
+            const userInfo = document.getElementById('userInfo');
             
             if (backButton) {
                 if (authData.authenticated) {
                     backButton.href = '/dashboard.html';
                     backButton.textContent = 'Back to Dashboard';
+                    loginButton.style.display = 'none';
+                    userInfo.style.display = 'block';
                 } else {
                     backButton.href = '/schools.html';
                     backButton.textContent = 'Back to Schools';
+                    loginButton.style.display = 'block';
+                    userInfo.style.display = 'none';
                 }
             }
         }

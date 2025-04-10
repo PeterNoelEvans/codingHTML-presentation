@@ -1,0 +1,141 @@
+{
+  "class": {
+    "id": "PP-P4-2",
+    "name": "P4-2",
+    "displayName": "P4-2",
+    "school": "PhumdhamPrimary"
+  },
+  "teachers": [],
+  "students": [
+    {
+      "username": "peter_42_001",
+      "password": "Peter42Pass",
+      "firstName": "Peter",
+      "lastName": "42",
+      "title": "Master",
+      "studentNumber": "001",
+      "nickname": "Peter",
+      "avatarFileName": "Peter42.png"
+    },
+    {
+      "username": "jdi_002",
+      "password": "JdiPass",
+      "firstName": "Jdi",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "002",
+      "nickname": "Jdi",
+      "avatarFileName": "Jdi.png"
+    },
+    {
+      "username": "paul_003",
+      "password": "PaulPass",
+      "firstName": "Paul",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "003",
+      "nickname": "Paul",
+      "avatarFileName": "Paul.png"
+    },
+    {
+      "username": "ounjai_004",
+      "password": "OunjaiPass",
+      "firstName": "Ounjai",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "004",
+      "nickname": "Ounjai",
+      "avatarFileName": "Ounjai.png"
+    },
+    {
+      "username": "pleng_005",
+      "password": "PlengPass",
+      "firstName": "Pleng",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "005",
+      "nickname": "Pleng",
+      "avatarFileName": "Pleng.png"
+    },
+    {
+      "username": "tonmali_006",
+      "password": "TonmaliPass",
+      "firstName": "Tonmali",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "006",
+      "nickname": "Tonmali",
+      "avatarFileName": "Tonmali.png"
+    },
+    {
+      "username": "tin_007",
+      "password": "TinPass",
+      "firstName": "Tin",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "007",
+      "nickname": "Tin",
+      "avatarFileName": "Tin.png"
+    },
+    {
+      "username": "darin_008",
+      "password": "DarinPass",
+      "firstName": "Darin",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "008",
+      "nickname": "Darin",
+      "avatarFileName": "Darin.png"
+    },
+    {
+      "username": "peso_009",
+      "password": "PesoPass",
+      "firstName": "Peso",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "009",
+      "nickname": "Peso",
+      "avatarFileName": "Peso.jpg"
+    },
+    {
+      "username": "poonpoon_010",
+      "password": "PoonPoonPass",
+      "firstName": "PoonPoon",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "010",
+      "nickname": "PoonPoon",
+      "avatarFileName": "PoonPoon.jpg"
+    },
+    {
+      "username": "perth_011",
+      "password": "PerthPass",
+      "firstName": "Perth",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "011",
+      "nickname": "Perth",
+      "avatarFileName": "Perth.jpg"
+    },
+    {
+      "username": "sky_012",
+      "password": "SkyPass",
+      "firstName": "Sky",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "012",
+      "nickname": "Sky",
+      "avatarFileName": "Sky.jpg"
+    },
+    {
+      "username": "zeno_013",
+      "password": "ZenoPass",
+      "firstName": "Zeno",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "013",
+      "nickname": "Zeno",
+      "avatarFileName": "Zeno.jpg"
+    }
+  ]
+} 

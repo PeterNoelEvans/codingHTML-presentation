@@ -57,15 +57,54 @@ const schools = [
     name: 'Prabhassorn Vidhaya School Chonburi',
     classes: [
       {
-        id: 'ClassM2-001',
-        name: 'Class 001',
+        id: 'M2-001',
+        name: 'M2 2025',
         displayName: 'M2 2025',
         description: 'This is a presentation of M2 2025 001 Coding Class.',
-        portfolioPath: '/portfolios/ClassM2-001'
+        portfolioPath: '/portfolios/PBSChonburi/classes/M2-001'
+      }
+    ]
+  },
+  {
+    id: 'Thayaiwittaya',
+    name: 'Thayai Wittaya School Songkhla',
+    classes: [
+      {
+        id: 'Secondary1',
+        name: 'Secondary Class M1',
+        displayName: 'M1',
+        description: 'This is the coding class of Secondary Class M1',
+        portfolioPath: '/portfolios/Thayaiwittaya/classes/Secondary1'
+      },
+      {
+        id: 'Secondary2',
+        name: 'Secondary Class M2',
+        displayName: 'M2',
+        description: 'This is the coding class of Secondary Class M2',
+        portfolioPath: '/portfolios/Thayaiwittaya/classes/Secondary2'
+      }
+    ]
+  },
+  {
+    id: 'PhumdhamPrimary',
+    name: 'Phumdham Primary Learning Center',
+    classes: [
+      {
+        id: 'P4-1',
+        name: 'Class 4/1',
+        displayName: 'Class 4/1',
+        description: 'Grade 4/1 Coding Class',
+        portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-1'
+      },
+      {
+        id: 'P4-2',
+        name: 'Class 4/2',
+        displayName: 'Class 4/2',
+        description: 'Grade 4/2 Coding Class',
+        portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-2'
       }
     ]
   }
-  // Add more schools as needed
 ];
 
 /**
@@ -117,6 +156,7 @@ function getAllClassIds() {
 }
 
 module.exports = {
+  schools,
   getSchools,
   getSchool,
   getClasses,
@@ -128,9 +168,43 @@ console.log(`Resetting schools config: ${schoolsConfigPath}`);
 fs.writeFileSync(schoolsConfigPath, resetConfig, 'utf8');
 console.log('Schools configuration reset.');
 
+// 4. Create necessary directories
+console.log('\nCreating directory structure...');
+const schools = [
+  {
+    id: 'PBSChonburi',
+    classes: ['M2-001']
+  },
+  {
+    id: 'Thayaiwittaya',
+    classes: ['Secondary1', 'Secondary2']
+  },
+  {
+    id: 'PhumdhamPrimary',
+    classes: ['P4-1', 'P4-2']
+  }
+];
+
+schools.forEach(school => {
+  const schoolPath = path.join(__dirname, 'portfolios', school.id, 'classes');
+  fs.mkdirSync(schoolPath, { recursive: true });
+  console.log(`Created school directory: ${schoolPath}`);
+
+  school.classes.forEach(classId => {
+    const classPath = path.join(schoolPath, classId);
+    fs.mkdirSync(classPath, { recursive: true });
+    console.log(`Created class directory: ${classPath}`);
+  });
+});
+
 console.log('=== Database Reset Complete ===');
 console.log('\nNext steps:');
-console.log('1. Run "npm run setup-class PBSChonburi ClassM2-001" to set up students');
+console.log('1. Run the following commands to set up students for each class:');
+schools.forEach(school => {
+  school.classes.forEach(classId => {
+    console.log(`   npm run setup-class ${school.id} ${classId}`);
+  });
+});
 console.log('2. Restart the server with "npm run dev"');
 
 // Close the database connection

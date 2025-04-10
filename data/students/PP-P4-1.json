@@ -1,0 +1,171 @@
+{
+  "class": {
+    "id": "PP-P4-1",
+    "name": "P4-1",
+    "displayName": "P4-1",
+    "school": "PhumdhamPrimary"
+  },
+  "teachers": [],
+  "students": [
+    {
+      "username": "peter_41_001",
+      "password": "Peter41Pass",
+      "firstName": "Peter",
+      "lastName": "41",
+      "title": "Master",
+      "studentNumber": "001",
+      "nickname": "Peter",
+      "avatarFileName": "Peter41.png"
+    },
+    {
+      "username": "peta_41_002",
+      "password": "PetaPass",
+      "firstName": "Peta",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "002",
+      "nickname": "Peta",
+      "avatarFileName": "Peta.png"
+    },
+    {
+      "username": "uda_41_003",
+      "password": "UdaPass",
+      "firstName": "Uda",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "003",
+      "nickname": "Uda",
+      "avatarFileName": "Uda.png"
+    },
+    {
+      "username": "tar_41_004",
+      "password": "TarPass",
+      "firstName": "Tar",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "004",
+      "nickname": "Tar",
+      "avatarFileName": "Tar.png"
+    },
+    {
+      "username": "jaijai_41_005",
+      "password": "JaijaiPass",
+      "firstName": "Jaijai",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "005",
+      "nickname": "Jaijai",
+      "avatarFileName": "jiajia.jpg"
+    },
+    {
+      "username": "nava_41_006",
+      "password": "NavaPass",
+      "firstName": "Nava",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "006",
+      "nickname": "Nava",
+      "avatarFileName": "Nava.png"
+    },
+    {
+      "username": "bonus_41_007",
+      "password": "BonusPass",
+      "firstName": "Bonus",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "007",
+      "nickname": "Bonus",
+      "avatarFileName": "Bonus.png"
+    },
+    {
+      "username": "nicha_41_008",
+      "password": "NichaPass",
+      "firstName": "Nicha",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "008",
+      "nickname": "Nicha",
+      "avatarFileName": "Nicha.png"
+    },
+    {
+      "username": "tigger_41_009",
+      "password": "TiggerPass",
+      "firstName": "Tigger",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "009",
+      "nickname": "Tigger",
+      "avatarFileName": "Tigger.png"
+    },
+    {
+      "username": "uno_41_010",
+      "password": "UnoPass",
+      "firstName": "Uno",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "010",
+      "nickname": "Uno",
+      "avatarFileName": "Uno.png"
+    },
+    {
+      "username": "namoun_41_011",
+      "password": "NamounPass",
+      "firstName": "Namoun",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "011",
+      "nickname": "Namoun",
+      "avatarFileName": "Namoun.png"
+    },
+    {
+      "username": "copter_41_001",
+      "password": "CopterPass",
+      "firstName": "Copter",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "001",
+      "nickname": "Copter",
+      "avatarFileName": "Copter.png"
+    },
+    {
+      "username": "phupha_41_013",
+      "password": "PhuphaPass",
+      "firstName": "Phupha",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "013",
+      "nickname": "Phupha",
+      "avatarFileName": "Phupha.png"
+    },
+    {
+      "username": "teen_41_014",
+      "password": "TeenPass",
+      "firstName": "Teen",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "014",
+      "nickname": "Teen",
+      "avatarFileName": "Teen.jpg"
+    },
+    {
+      "username": "kod_41_015",
+      "password": "KodPass",
+      "firstName": "Kod",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "015",
+      "nickname": "Kod",
+      "avatarFileName": "Kod.png"
+    },
+    {
+      "username": "earth_41_016",
+      "password": "EarthPass",
+      "firstName": "Earth",
+      "lastName": "",
+      "title": "Master",
+      "studentNumber": "016",
+      "nickname": "Earth",
+      "avatarFileName": "Earth.png"
+    }
+  ]
+} 

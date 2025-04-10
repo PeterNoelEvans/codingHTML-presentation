@@ -27,8 +27,8 @@ The system uses specific directory names that MUST be used exactly as shown:
 | Class Display Name | Directory Name | Example Path |
 |-------------------|----------------|--------------|
 | M2 2025 | ClassM2-001 | /portfolios/ClassM2-001/StudentName/StudentName.html |
-| Class 4/1 | P4-1 | /portfolios/P4-1/StudentName/StudentName.html |
-| Class 4/2 | P4-2 | /portfolios/P4-2/StudentName/StudentName.html |
+| Class 4/1 | P4-1 | /portfolios/PhumdhamPrimary/classes/P4-1/StudentName/StudentName.html |
+| Class 4/2 | P4-2 | /portfolios/PhumdhamPrimary/classes/P4-2/StudentName/StudentName.html |
 
 ⚠️ CRITICAL IMPLEMENTATION NOTES:
 1. Directory names are case-sensitive

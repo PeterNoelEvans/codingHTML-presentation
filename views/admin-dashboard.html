@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <header>
+        <h1>Admin Dashboard</h1>
+        <button id="logoutBtn">Logout</button>
+    </header>
+
+    <main>
+        <section id="schoolManagement">
+            <h2>School Management</h2>
+            <div class="form-group">
+                <label for="newSchoolName">New School Name:</label>
+                <input type="text" id="newSchoolName" required>
+                <button id="addSchoolBtn">Add School</button>
+            </div>
+        </section>
+
+        <section id="classManagement">
+            <h2>Class Management</h2>
+            <div class="form-group">
+                <label for="schoolSelect">Select School:</label>
+                <select id="schoolSelect" required></select>
+                
+                <label for="newClassName">New Class Name:</label>
+                <input type="text" id="newClassName" required>
+                
+                <label for="newClassId">Class ID:</label>
+                <input type="text" id="newClassId" required>
+                
+                <button id="addClassBtn">Add Class</button>
+            </div>
+        </section>
+
+        <section id="studentManagement">
+            <h2>Student Management</h2>
+            <div class="form-group">
+                <label for="classSelect">Select Class:</label>
+                <select id="classSelect" required></select>
+                
+                <label for="studentFile">Student List (CSV):</label>
+                <input type="file" id="studentFile" accept=".csv" required>
+                <small>Format: Full Name,Student Number,Nickname (one per line)</small>
+                
+                <button id="addStudentsBtn">Add Students</button>
+            </div>
+        </section>
+
+        <section id="currentSchools">
+            <h2>Current Schools and Classes</h2>
+            <div id="schoolsList"></div>
+        </section>
+    </main>
+
+    <script>
+        // Load schools and classes on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSchools();
+            await loadClasses();
+        });
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/admin/logout', { method: 'POST' });
+                window.location.href = '/admin-login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        });
+
+        // Add new school
+        document.getElementById('addSchoolBtn').addEventListener('click', async () => {
+            const schoolName = document.getElementById('newSchoolName').value;
+            if (!schoolName) return;
+
+            try {
+                const response = await fetch('/admin/schools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: schoolName })
+                });
+
+                if (response.ok) {
+                    await loadSchools();
+                    document.getElementById('newSchoolName').value = '';
+                } else {
+                    alert('Failed to add school');
+                }
+            } catch (error) {
+                console.error('Error adding school:', error);
+            }
+        });
+
+        // Add new class
+        document.getElementById('addClassBtn').addEventListener('click', async () => {
+            const schoolId = document.getElementById('schoolSelect').value;
+            const className = document.getElementById('newClassName').value;
+            const classId = document.getElementById('newClassId').value;
+
+            if (!schoolId || !className || !classId) return;
+
+            try {
+                const response = await fetch('/admin/classes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ schoolId, name: className, id: classId })
+                });
+
+                if (response.ok) {
+                    await loadClasses();
+                    document.getElementById('newClassName').value = '';
+                    document.getElementById('newClassId').value = '';
+                } else {
+                    alert('Failed to add class');
+                }
+            } catch (error) {
+                console.error('Error adding class:', error);
+            }
+        });
+
+        // Add students from file
+        document.getElementById('addStudentsBtn').addEventListener('click', async () => {
+            const classId = document.getElementById('classSelect').value;
+            const file = document.getElementById('studentFile').files[0];
+            
+            if (!classId || !file) return;
+
+            const formData = new FormData();
+            formData.append('classId', classId);
+            formData.append('students', file);
+
+            try {
+                const response = await fetch('/admin/students', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    alert('Students added successfully');
+                    document.getElementById('studentFile').value = '';
+                } else {
+                    alert('Failed to add students');
+                }
+            } catch (error) {
+                console.error('Error adding students:', error);
+            }
+        });
+
+        // Load schools into dropdown and display
+        async function loadSchools() {
+            try {
+                const response = await fetch('/admin/schools');
+                const schools = await response.json();
+                
+                // Update school dropdown
+                const schoolSelect = document.getElementById('schoolSelect');
+                schoolSelect.innerHTML = '<option value="">Select School</option>';
+                schools.forEach(school => {
+                    const option = document.createElement('option');
+                    option.value = school.id;
+                    option.textContent = school.name;
+                    schoolSelect.appendChild(option);
+                });
+
+                // Update schools list display
+                const schoolsList = document.getElementById('schoolsList');
+                schoolsList.innerHTML = '';
+                schools.forEach(school => {
+                    const schoolDiv = document.createElement('div');
+                    schoolDiv.className = 'school-item';
+                    schoolDiv.innerHTML = `
+                        <h3>${school.name}</h3>
+                        <div class="classes-list">
+                            ${school.classes.map(cls => `
+                                <div class="class-item">
+                                    <span>${cls.name}</span>
+                                    <span>(${cls.id})</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    schoolsList.appendChild(schoolDiv);
+                });
+            } catch (error) {
+                console.error('Error loading schools:', error);
+            }
+        }
+
+        // Load classes into dropdown
+        async function loadClasses() {
+            const schoolId = document.getElementById('schoolSelect').value;
+            if (!schoolId) return;
+
+            try {
+                const response = await fetch(`/admin/classes?schoolId=${schoolId}`);
+                const classes = await response.json();
+                
+                const classSelect = document.getElementById('classSelect');
+                classSelect.innerHTML = '<option value="">Select Class</option>';
+                classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls.id;
+                    option.textContent = `${cls.name} (${cls.id})`;
+                    classSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading classes:', error);
+            }
+        }
+
+        // Update classes when school selection changes
+        document.getElementById('schoolSelect').addEventListener('change', loadClasses);
+    </script>
+</body>
+</html> 

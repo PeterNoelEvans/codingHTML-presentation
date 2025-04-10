@@ -81,8 +81,8 @@ async function convertCSVToJSON() {
         let username = '';
         if (firstName && lastName) {
           username = studentNumber 
-            ? `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${studentNumber}` 
-            : `${firstName.toLowerCase()}_${lastName.toLowerCase()}`;
+            ? generateUsername(firstName, lastName, studentNumber) 
+            : generateUsername(firstName, lastName, '');
         }
         
         // Generate display name (properly formatted name)
@@ -148,16 +148,19 @@ function askQuestion(rl, question) {
 function generateUsername(firstName, lastName, studentNumber) {
   if (!firstName || !lastName) return '';
   if (studentNumber) {
-    return `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${studentNumber}`;
+    // Capitalize first letter of first name, rest lowercase
+    const formattedFirstName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+    return `${formattedFirstName}_${lastName.toLowerCase()}_${studentNumber}`;
   }
-  return `${firstName.toLowerCase()}_${lastName.toLowerCase()}`;
+  return `${firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()}_${lastName.toLowerCase()}`;
 }
 
 // Helper function to generate a password
 function generatePassword(firstName, lastName) {
   if (!firstName || !lastName) return `Student${new Date().getFullYear()}`;
   const year = new Date().getFullYear();
-  return `${firstName}${year}${lastName.substring(0, 2).toUpperCase()}`;
+  // Use properly capitalized first name
+  return `${firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()}${year}${lastName.substring(0, 2).toUpperCase()}`;
 }
 
 // Run the conversion

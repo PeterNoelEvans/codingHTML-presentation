@@ -140,6 +140,7 @@
         </div>
     </div>
 
+    <script src="/utils/pathManager.js"></script>
     <script>
         // Function to load schools from the server
         async function loadSchools() {
@@ -190,10 +191,23 @@
         // Function to generate portfolio path
         function generatePortfolioPath() {
             const username = document.getElementById('username').value.trim();
+            const schoolId = document.getElementById('school').value;
             const classId = document.getElementById('class').value;
-            if (username && classId) {
-                const path = `/portfolios/${classId}/${username}/${username}.html`;
-                document.getElementById('portfolioPath').value = path;
+            
+            if (username && schoolId && classId) {
+                try {
+                    // Format username and generate path using PathManager
+                    const formattedUsername = PathManager.formatUsername(username);
+                    const path = PathManager.getPortfolioPath(schoolId, classId, username);
+                    
+                    document.getElementById('portfolioPath').value = path;
+                    // Update the username field with the formatted version
+                    document.getElementById('username').value = formattedUsername;
+                } catch (error) {
+                    const errorDiv = document.getElementById('errorMessage');
+                    errorDiv.textContent = error.message;
+                    errorDiv.style.display = 'block';
+                }
             }
         }
 
@@ -224,10 +238,6 @@
             const classId = document.getElementById('class').value;
             const errorDiv = document.getElementById('errorMessage');
             
-            // Generate final portfolio path
-            generatePortfolioPath();
-            const portfolioPath = document.getElementById('portfolioPath').value;
-            
             // Reset error message
             errorDiv.style.display = 'none';
             errorDiv.textContent = '';
@@ -239,21 +249,25 @@
                 return;
             }
             
-            // Validate password length
-            if (password.length < 8) {
-                errorDiv.textContent = 'Password must be at least 8 characters long';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // Check if passwords match
-            if (password !== confirmPassword) {
-                errorDiv.textContent = 'Passwords do not match';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
             try {
+                // Format username and generate path using PathManager
+                const formattedUsername = PathManager.formatUsername(username);
+                const portfolioPath = PathManager.getPortfolioPath(school, classId, username);
+                
+                // Validate password length
+                if (password.length < 8) {
+                    errorDiv.textContent = 'Password must be at least 8 characters long';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
+                // Check if passwords match
+                if (password !== confirmPassword) {
+                    errorDiv.textContent = 'Passwords do not match';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
                 const response = await fetch('/register', {
                     method: 'POST',
                     headers: {
@@ -262,7 +276,7 @@
                         'Cache-Control': 'no-cache'
                     },
                     body: JSON.stringify({ 
-                        username,
+                        username: formattedUsername,
                         password,
                         portfolio_path: portfolioPath
                     })
@@ -284,7 +298,7 @@
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                errorDiv.textContent = 'An error occurred during registration. Please try again.';
+                errorDiv.textContent = error.message || 'An error occurred during registration. Please try again.';
                 errorDiv.style.display = 'block';
             }
         });

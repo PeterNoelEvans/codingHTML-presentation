@@ -20,7 +20,7 @@ Example configuration:
             name: 'M2 2025',
             displayName: 'M2 2025',
             description: 'M2 2025 Coding Class',
-            portfolioPath: '/portfolios/M2-001'
+            portfolioPath: '/portfolios/PhumdhamPrimary/classes/M2-001'
         }
     ]
 },
@@ -33,14 +33,14 @@ Example configuration:
             name: 'Class 4/1',
             displayName: 'Class 4/1',
             description: 'Grade 4/1 Coding Class',
-            portfolioPath: '/portfolios/P4-1'
+            portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-1'
         },
         {
             id: 'P4-2',
             name: 'Class 4/2',
             displayName: 'Class 4/2',
             description: 'Grade 4/2 Coding Class',
-            portfolioPath: '/portfolios/P4-2'
+            portfolioPath: '/portfolios/PhumdhamPrimary/classes/P4-2'
         }
     ]
 }
@@ -77,9 +77,9 @@ The system uses a consistent directory structure for portfolios:
 
 ## Portfolio Paths
 Portfolio paths follow this format:
-- M2 students: `/portfolios/M2-001/{username}/{username}.html`
-- P4-1 students: `/portfolios/P4-1/{username}/{username}.html`
-- P4-2 students: `/portfolios/P4-2/{username}/{username}.html`
+- M2 students: `/portfolios/PhumdhamPrimary/classes/M2-001/{username}/{username}.html`
+- P4-1 students: `/portfolios/PhumdhamPrimary/classes/P4-1/{username}/{username}.html`
+- P4-2 students: `/portfolios/PhumdhamPrimary/classes/P4-2/{username}/{username}.html`
 
 ## API Endpoints
 - `GET /api/schools` - List all schools
@@ -107,12 +107,12 @@ Portfolio paths follow this format:
     id: 'M2-002',  // Use consistent ID format
     name: 'M2 2026',
     displayName: 'M2 2026',
-    portfolioPath: '/portfolios/M2-002'
+    portfolioPath: '/portfolios/PhumdhamPrimary/classes/M2-002'
 }
 ```
 2. Create the portfolio directory:
 ```bash
-mkdir -p portfolios/M2-002
+mkdir -p portfolios/PhumdhamPrimary/classes/M2-002
 ```
 
 ### Troubleshooting

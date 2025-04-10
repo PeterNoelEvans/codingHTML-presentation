@@ -24,98 +24,35 @@ function ensureDirectoriesExist(classObj) {
   }
 }
 
+// Get the school prefix from the school ID
+function getSchoolPrefix(schoolId) {
+  const prefixMap = {
+    'PhumdhamPrimary': 'PP',
+    'PBSChonburi': 'PBS'
+  };
+  return prefixMap[schoolId] || schoolId;
+}
+
 // Function to get students for a class from JSON file
 function getStudentsForClass(schoolId, classId) {
-  // First try to read from the JSON file
-  const studentsFilePath = path.join(__dirname, '..', 'data', 'students', `${classId}.json`);
+  // Use the new school-prefixed format
+  const studentsFilePath = path.join(__dirname, '..', 'data', 'students', `${getSchoolPrefix(schoolId)}-${classId}.json`);
+  console.log(`Reading students from: ${studentsFilePath}`);
   
+  let studentsData = null;
   try {
     if (fs.existsSync(studentsFilePath)) {
-      console.log(`Reading students from: ${studentsFilePath}`);
-      const studentsData = JSON.parse(fs.readFileSync(studentsFilePath, 'utf8'));
-      
-      // Process and validate the data
-      if (!studentsData.students || !Array.isArray(studentsData.students)) {
-        throw new Error('Invalid students data format - missing students array');
-      }
-      
-      // Ensure class data matches
-      const classObj = getClass(schoolId, classId);
-      
-      // Transform to the format needed for database
-      const students = studentsData.students.map(student => {
-        // Generate portfolio path
-        const portfolioPath = `${classObj.portfolioPath}/${student.username}/${student.username}.html`;
-        
-        // Return student in the format needed for the database
-        return {
-          username: student.username,
-          password: student.password,
-          portfolio_path: portfolioPath,
-          firstName: student.firstName || '',
-          lastName: student.lastName || '',
-          nickname: student.nickname || '',
-          // Process avatar path if provided
-          avatar_path: student.avatarFileName 
-            ? `${classObj.portfolioPath}/${student.username}/images/${student.avatarFileName}`
-            : `${classObj.portfolioPath}/${student.username}/images/${student.username}.jpg`
-        };
-      });
-      
-      // Create student directories
-      students.forEach(student => {
-        const studentDir = path.join(
-          __dirname, 
-          '..', 
-          student.portfolio_path.substring(0, student.portfolio_path.lastIndexOf('/'))
-        );
-        
-        if (!fs.existsSync(studentDir)) {
-          console.log(`Creating student directory: ${studentDir}`);
-          fs.mkdirSync(studentDir, { recursive: true });
-          
-          // Create images subdirectory
-          const imagesDir = path.join(studentDir, 'images');
-          if (!fs.existsSync(imagesDir)) {
-            fs.mkdirSync(imagesDir);
-          }
-          
-          // Create a basic portfolio HTML file from template
-          createPortfolioFromTemplate(student, studentDir);
-        }
-      });
-      
-      return students;
-    } else {
-      console.log(`No student data file found at: ${studentsFilePath}`);
-      console.log('Using default student data');
-      
-      // If no file exists, return some sample data
-      const classObj = getClass(schoolId, classId);
-      return [
-        { 
-          username: `Student1_${classId}`, 
-          password: `Student1Pass_${classId}`, 
-          portfolio_path: `${classObj.portfolioPath}/Student1/Student1.html`,
-          firstName: 'Student',
-          lastName: 'One',
-          nickname: 'S1'
-        },
-        { 
-          username: `Student2_${classId}`, 
-          password: `Student2Pass_${classId}`, 
-          portfolio_path: `${classObj.portfolioPath}/Student2/Student2.html`,
-          firstName: 'Student',
-          lastName: 'Two',
-          nickname: 'S2'
-        }
-      ];
+      studentsData = JSON.parse(fs.readFileSync(studentsFilePath, 'utf8'));
     }
   } catch (error) {
     console.error(`Error reading student data: ${error.message}`);
+  }
+
+  if (!studentsData) {
+    console.log(`No student data file found at: ${studentsFilePath}`);
     console.log('Using default student data');
     
-    // If error, return some sample data
+    // If no file exists, return some sample data
     const classObj = getClass(schoolId, classId);
     return [
       { 
@@ -136,6 +73,59 @@ function getStudentsForClass(schoolId, classId) {
       }
     ];
   }
+
+  // Process and validate the data
+  if (!studentsData.students || !Array.isArray(studentsData.students)) {
+    throw new Error(`Invalid students data format in ${studentsFilePath} - missing students array`);
+  }
+  
+  // Ensure class data matches
+  const classObj = getClass(schoolId, classId);
+  
+  // Transform to the format needed for database
+  const students = studentsData.students.map(student => {
+    // Generate portfolio path
+    const portfolioPath = `${classObj.portfolioPath}/${student.username}/${student.username}.html`;
+    
+    // Return student in the format needed for the database
+    return {
+      username: student.username,
+      password: student.password,
+      portfolio_path: portfolioPath,
+      firstName: student.firstName || '',
+      lastName: student.lastName || '',
+      nickname: student.nickname || '',
+      // Process avatar path if provided
+      avatar_path: student.avatarFileName 
+        ? `${classObj.portfolioPath}/${student.username}/images/${student.avatarFileName}`
+        : `${classObj.portfolioPath}/${student.username}/images/${student.username}.jpg`
+    };
+  });
+  
+  // Create student directories
+  students.forEach(student => {
+    const studentDir = path.join(
+      __dirname, 
+      '..', 
+      student.portfolio_path.substring(0, student.portfolio_path.lastIndexOf('/'))
+    );
+    
+    if (!fs.existsSync(studentDir)) {
+      console.log(`Creating student directory: ${studentDir}`);
+      fs.mkdirSync(studentDir, { recursive: true });
+      
+      // Create images subdirectory
+      const imagesDir = path.join(studentDir, 'images');
+      if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir);
+      }
+      
+      // Create a basic portfolio HTML file from template
+      createPortfolioFromTemplate(student, studentDir);
+    }
+  });
+  
+  return students;
 }
 
 // Function to create a portfolio HTML file from template

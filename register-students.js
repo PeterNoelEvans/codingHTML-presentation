@@ -36,41 +36,43 @@ async function clearAllUsers() {
     }
 }
 
-const students41 = [
-    { username: 'Peter41', password: 'Peter2025AA', portfolio_path: '/portfolios/P4-1/Peter/Peter.html' },
-    { username: 'Peta', password: 'Peta2025A', portfolio_path: '/portfolios/P4-1/Peta/Peta.html' },
-    { username: 'Uda', password: 'Uda2025B', portfolio_path: '/portfolios/P4-1/Uda/Uda.html' },
-    { username: 'Tar', password: 'Tar2025C', portfolio_path: '/portfolios/P4-1/Tar/Tar.html' },
-    { username: 'Jaijai', password: 'Jaijai2025D', portfolio_path: '/portfolios/P4-1/Jaijai/Jaijai.html' },
-    { username: 'Nava', password: 'Nava2025E', portfolio_path: '/portfolios/P4-1/Nava/Nava.html' },
-    { username: 'Bonus', password: 'Bonus2025F', portfolio_path: '/portfolios/P4-1/Bonus/Bonus.html' },
-    { username: 'Nicha', password: 'Nicha2025G', portfolio_path: '/portfolios/P4-1/Nicha/Nicha.html' },
-    { username: 'Tigger', password: 'Tigger2025H', portfolio_path: '/portfolios/P4-1/Tigger/Tigger.html' },
-    { username: 'Uno', password: 'Uno2025I', portfolio_path: '/portfolios/P4-1/Uno/Uno.html' },
-    { username: 'Namoun', password: 'Namoun2025J', portfolio_path: '/portfolios/P4-1/Namoun/Namoun.html' },
-    { username: 'Copter', password: 'Copter2025K', portfolio_path: '/portfolios/P4-1/Copter/Copter.html' },
-    { username: 'Phupha', password: 'Phupha2025L', portfolio_path: '/portfolios/P4-1/Phupha/Phupha.html' },
-    { username: 'Teen', password: 'Teen2025M', portfolio_path: '/portfolios/P4-1/Teen/Teen.html' },
-    { username: 'Kod', password: 'Kod2025N', portfolio_path: '/portfolios/P4-1/Kod/Kod.html' },
-    { username: 'Earth', password: 'Earth2025O', portfolio_path: '/portfolios/P4-1/Earth/Earth.html' }
+// Class 4/1 Students
+const class41Students = [
+    { username: 'Peter_41_001', password: 'Peter41Pass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peter_41_001/Peter_41_001.html', is_public: 1 },
+    { username: 'Peta_41_001', password: 'PetaPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peta_41_001/Peta_41_001.html', is_public: 1 },
+    { username: 'Uda_41_001', password: 'UdaPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uda_41_001/Uda_41_001.html', is_public: 1 },
+    { username: 'Tar_41_001', password: 'TarPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tar_41_001/Tar_41_001.html', is_public: 1 },
+    { username: 'Jaijai_41_001', password: 'JaijaiPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Jaijai_41_001/Jaijai_41_001.html', is_public: 1 },
+    { username: 'Nava_41_001', password: 'NavaPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nava_41_001/Nava_41_001.html', is_public: 1 },
+    { username: 'Bonus_41_001', password: 'BonusPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Bonus_41_001/Bonus_41_001.html', is_public: 1 },
+    { username: 'Nicha_41_001', password: 'NichaPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nicha_41_001/Nicha_41_001.html', is_public: 1 },
+    { username: 'Tigger_41_001', password: 'TiggerPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tigger_41_001/Tigger_41_001.html', is_public: 1 },
+    { username: 'Uno_41_001', password: 'UnoPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uno_41_001/Uno_41_001.html', is_public: 1 },
+    { username: 'Namoun_41_001', password: 'NamounPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Namoun_41_001/Namoun_41_001.html', is_public: 1 },
+    { username: 'Copter_41_001', password: 'CopterPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Copter_41_001/Copter_41_001.html', is_public: 1 },
+    { username: 'Phupha_41_001', password: 'PhuphaPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Phupha_41_001/Phupha_41_001.html', is_public: 1 },
+    { username: 'Teen_41_001', password: 'TeenPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Teen_41_001/Teen_41_001.html', is_public: 1 },
+    { username: 'Kod_41_001', password: 'KodPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Kod_41_001/Kod_41_001.html', is_public: 1 },
+    { username: 'Earth_41_001', password: 'EarthPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Earth_41_001/Earth_41_001.html', is_public: 1 }
 ];
 
-const students42 = [
-    { username: 'Peter42', password: 'Peter2025BB', portfolio_path: '/portfolios/P4-2/Peter/Peter.html' },
-    { username: 'Chapter', password: 'Chapter2025A', portfolio_path: '/portfolios/P4-2/Chapter/Chapter.html' },
-    { username: 'Zeno', password: 'Zeno2025B', portfolio_path: '/portfolios/P4-2/Zeno/Zeno.html' },
-    { username: 'Jdi', password: 'Jdi2025C', portfolio_path: '/portfolios/P4-2/Jdi/Jdi.html' },
-    { username: 'Sky', password: 'Sky2025D', portfolio_path: '/portfolios/P4-2/Sky/Sky.html' },
-    { username: 'Perth', password: 'Perth2025E', portfolio_path: '/portfolios/P4-2/Perth/Perth.html' },
-    { username: 'Tin', password: 'Tin2025F', portfolio_path: '/portfolios/P4-2/Tin/Tin.html' },
-    { username: 'PoonPoon', password: 'Poonpoon2025G', portfolio_path: '/portfolios/P4-2/PoonPoon/PoonPoon.html' },
-    { username: 'Paul', password: 'Paul2025H', portfolio_path: '/portfolios/P4-2/Paul/Paul.html' },
-    { username: 'Peso', password: 'Peso2025I', portfolio_path: '/portfolios/P4-2/Peso/Peso.html' },
-    { username: 'Ounjai', password: 'Ounjai2025J', portfolio_path: '/portfolios/P4-2/Ounjai/Ounjai.html' },
-    { username: 'Darin', password: 'Darin2025K', portfolio_path: '/portfolios/P4-2/Darin/Darin.html' },
-    { username: 'Harber', password: 'Harber2025L', portfolio_path: '/portfolios/P4-2/Harber/Harber.html' },
-    { username: 'Pleng', password: 'Pleng2025M', portfolio_path: '/portfolios/P4-2/Pleng/Pleng.html' },
-    { username: 'Tonmali', password: 'Tonmali2025N', portfolio_path: '/portfolios/P4-2/Tonmali/Tonmali.html' }
+// Class 4/2 Students
+const class42Students = [
+    { username: 'Peter_42_001', password: 'Peter42Pass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Peter_42_001/Peter_42_001.html', is_public: 1 },
+    { username: 'Chapter_42_001', password: 'ChapterPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Chapter_42_001/Chapter_42_001.html', is_public: 1 },
+    { username: 'Zeno_42_001', password: 'ZenoPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Zeno_42_001/Zeno_42_001.html', is_public: 1 },
+    { username: 'Jdi_42_001', password: 'JdiPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Jdi_42_001/Jdi_42_001.html', is_public: 1 },
+    { username: 'Sky_42_001', password: 'SkyPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Sky_42_001/Sky_42_001.html', is_public: 1 },
+    { username: 'Perth_42_001', password: 'PerthPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Perth_42_001/Perth_42_001.html', is_public: 1 },
+    { username: 'Tin_42_001', password: 'TinPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Tin_42_001/Tin_42_001.html', is_public: 1 },
+    { username: 'Poonpoon_42_001', password: 'PoonPoonPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Poonpoon_42_001/Poonpoon_42_001.html', is_public: 1 },
+    { username: 'Paul_42_001', password: 'PaulPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Paul_42_001/Paul_42_001.html', is_public: 1 },
+    { username: 'Peso_42_001', password: 'PesoPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Peso_42_001/Peso_42_001.html', is_public: 1 },
+    { username: 'Ounjai_42_001', password: 'OunjaiPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Ounjai_42_001/Ounjai_42_001.html', is_public: 1 },
+    { username: 'Darin_42_001', password: 'DarinPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Darin_42_001/Darin_42_001.html', is_public: 1 },
+    { username: 'Harber_42_001', password: 'HarberPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Harber_42_001/Harber_42_001.html', is_public: 1 },
+    { username: 'Pleng_42_001', password: 'PlengPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Pleng_42_001/Pleng_42_001.html', is_public: 1 },
+    { username: 'Tonmali_42_001', password: 'TonmaliPass', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-2/Tonmali_42_001/Tonmali_42_001.html', is_public: 1 }
 ];
 
 // Function to wait
@@ -84,7 +86,10 @@ async function registerStudent(student) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(student),
+            body: JSON.stringify({
+                ...student,
+                is_public: student.is_public || 1  // Default to public if not specified
+            }),
             redirect: 'manual'
         });
 
@@ -165,7 +170,7 @@ async function registerAll(shouldClear = false) {
     
     // Register Class 4/1 students and parents
     console.log('\nRegistering Class 4/1 students and parents...');
-    for (const student of students41) {
+    for (const student of class41Students) {
         const studentSuccess = await registerStudent(student);
         if (studentSuccess) {
             await wait(1000); // Wait 1 second before registering parent
@@ -176,7 +181,7 @@ async function registerAll(shouldClear = false) {
     
     // Register Class 4/2 students and parents
     console.log('\nRegistering Class 4/2 students and parents...');
-    for (const student of students42) {
+    for (const student of class42Students) {
         const studentSuccess = await registerStudent(student);
         if (studentSuccess) {
             await wait(1000); // Wait 1 second before registering parent
@@ -188,5 +193,5 @@ async function registerAll(shouldClear = false) {
     console.log('\nRegistration process completed!');
 }
 
-// Run the registration process without clearing
-registerAll(false).catch(console.error); 
+// Run the registration process with clearing
+registerAll(true).catch(console.error); 

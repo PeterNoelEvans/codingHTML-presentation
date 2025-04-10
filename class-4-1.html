@@ -45,6 +45,11 @@
             const viewBtn = document.createElement('a');
             viewBtn.className = 'view-portfolio';
             viewBtn.textContent = 'View Portfolio';
+            
+            // Ensure the portfolio path uses the correct school-based structure
+            const portfolioPath = user.portfolio_path.startsWith('/portfolios/PhumdhamPrimary/classes/') 
+                ? user.portfolio_path 
+                : `/portfolios/PhumdhamPrimary/classes/P4-1/${user.username}/${user.username}.html`;
             viewBtn.href = portfolioPath;
             
             if (!isPublic) {
@@ -89,23 +94,23 @@
 
                 // Define the default Class 4/1 students (without privacy settings)
                 const defaultStudents = [
-                    { username: 'Peta', portfolio_path: '/portfolios/P4-1/Peta/Peta.html', avatar_path: '/portfolios/P4-1/Peta/images/Peta.png' },
-                    { username: 'Uda', portfolio_path: '/portfolios/P4-1/Uda/index.html', avatar_path: '/portfolios/P4-1/Uda/images/Uda.png' },
-                    { username: 'Nava', portfolio_path: '/portfolios/P4-1/Nava/Nava.html', avatar_path: '/portfolios/P4-1/Nava/images/Nava.png' },
-                    { username: 'Bonus', portfolio_path: '/portfolios/P4-1/Bonus/Bonus.html', avatar_path: '/portfolios/P4-1/Bonus/images/Bonus.png' },
-                    { username: 'Nicha', portfolio_path: '/portfolios/P4-1/Nicha/index.html', avatar_path: '/portfolios/P4-1/Nicha/images/Nicha.png' },
-                    { username: 'Copter', portfolio_path: '/portfolios/P4-1/Copter/Copter.html', avatar_path: '/portfolios/P4-1/Copter/images/Copter.png' },
-                    { username: 'Khun', portfolio_path: '/portfolios/P4-1/Khun/Khun.html', avatar_path: '/portfolios/P4-1/Khun/images/Khun.png' },
-                    { username: 'Kod', portfolio_path: '/portfolios/P4-1/Kod/Kod.html', avatar_path: '/portfolios/P4-1/Kod/images/Kod.png' },
-                    { username: 'Phupha', portfolio_path: '/portfolios/P4-1/Phupha/Phupha.html', avatar_path: '/portfolios/P4-1/Phupha/images/Phupha.png' },
-                    { username: 'Tar', portfolio_path: '/portfolios/P4-1/Tar/Tar.html', avatar_path: '/portfolios/P4-1/Tar/images/Tar.png' },
-                    { username: 'Jiajia', portfolio_path: '/portfolios/P4-1/Jiajia/Jiajia.html', avatar_path: '/portfolios/P4-1/Jiajia/images/Jiajia.png' },
-                    { username: 'Tigger', portfolio_path: '/portfolios/P4-1/Tigger/Tigger.html', avatar_path: '/portfolios/P4-1/Tigger/images/Tigger.png' },
-                    { username: 'Dean', portfolio_path: '/portfolios/P4-1/Dean/Dean.html', avatar_path: '/portfolios/P4-1/Dean/images/Dean.png' },
-                    { username: 'Uno', portfolio_path: '/portfolios/P4-1/Uno/Uno.html', avatar_path: '/portfolios/P4-1/Uno/images/Uno.png' },
-                    { username: 'Namoun', portfolio_path: '/portfolios/P4-1/Nahmoun/Namoun.html', avatar_path: '/portfolios/P4-1/Nahmoun/images/Namoun.png' },
-                    { username: 'Earth', portfolio_path: '/portfolios/P4-1/Earth/Earth.html', avatar_path: '/portfolios/P4-1/Earth/images/Earth.png' },
-                    { username: 'Peter41', portfolio_path: '/portfolios/P4-1/Peter41/Peter.html', avatar_path: '/portfolios/P4-1/Peter41/images/Peter.png' }
+                    { username: 'Peta', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peta/Peta.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peta/images/Peta.png' },
+                    { username: 'Peter41', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peter41/Peter41.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peter41/images/Peter41.png' },
+                    { username: 'Uda', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uda/index.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uda/images/Uda.png' },
+                    { username: 'Nava', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nava/Nava.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nava/images/Nava.png' },
+                    { username: 'Bonus', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Bonus/Bonus.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Bonus/images/Bonus.png' },
+                    { username: 'Nicha', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nicha/index.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nicha/images/Nicha.png' },
+                    { username: 'Copter', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Copter/Copter.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Copter/images/Copter.png' },
+                    { username: 'Khun', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Khun/Khun.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Khun/images/Khun.png' },
+                    { username: 'Kod', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Kod/Kod.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Kod/images/Kod.png' },
+                    { username: 'Phupha', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Phupha/Phupha.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Phupha/images/Phupha.png' },
+                    { username: 'Tar', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tar/Tar.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tar/images/Tar.png' },
+                    { username: 'Jiajia', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Jiajia/Jiajia.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Jiajia/images/Jiajia.png' },
+                    { username: 'Tigger', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tigger/Tigger.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Tigger/images/Tigger.png' },
+                    { username: 'Dean', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Dean/Dean.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Dean/images/Dean.png' },
+                    { username: 'Uno', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uno/Uno.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uno/images/Uno.png' },
+                    { username: 'Namoun', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nahmoun/Namoun.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nahmoun/images/Namoun.png' },
+                    { username: 'Earth', portfolio_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Earth/Earth.html', avatar_path: '/portfolios/PhumdhamPrimary/classes/P4-1/Earth/images/Earth.png' }
                 ];
 
                 // Fetch privacy states from server with no caching

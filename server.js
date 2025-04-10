@@ -57,7 +57,7 @@ const sessionConfig = {
     saveUninitialized: true,
     rolling: true, // Reset expiration with each request
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for local development
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         sameSite: 'lax'
@@ -148,10 +148,29 @@ async function initializeApp() {
         };
 
         // Set up static file serving with enhanced options
+        app.use('/images', express.static(path.join(__dirname, 'images'), {
+            dotfiles: 'allow',
+            etag: true,
+            extensions: ['png', 'jpg', 'jpeg', 'gif'],
+            maxAge: '1d',
+            setHeaders: function (res, path, stat) {
+                res.set('Cache-Control', 'public, max-age=86400');
+                // Set proper content type for images
+                const ext = path.toLowerCase().split('.').pop();
+                if (ext === 'png') {
+                    res.set('Content-Type', 'image/png');
+                } else if (ext === 'jpg' || ext === 'jpeg') {
+                    res.set('Content-Type', 'image/jpeg');
+                } else if (ext === 'gif') {
+                    res.set('Content-Type', 'image/gif');
+                }
+            }
+        }));
+
         app.use(express.static(__dirname, {
             dotfiles: 'allow',
             etag: true,
-            extensions: ['htm', 'html', 'png', 'jpg', 'jpeg', 'gif'],
+            extensions: ['htm', 'html'],
             index: false,
             maxAge: '1d',
             redirect: false,
@@ -161,46 +180,134 @@ async function initializeApp() {
             }
         }));
 
-        // Middleware to check portfolio access
+        // Serve static files first (images, css, js, etc.)
+        app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
+            dotfiles: 'allow',
+            etag: true,
+            extensions: ['htm', 'html', 'png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'gif', 'GIF', 'mp4', 'webp', 'ico', 'svg'],
+            index: false,
+            maxAge: '1d',
+            redirect: false,
+            setHeaders: function (res, path, stat) {
+                // Set proper content type for images based on case-insensitive extension
+                const ext = path.toLowerCase().split('.').pop();
+                if (ext === 'png') {
+                    res.set('Content-Type', 'image/png');
+                } else if (ext === 'jpg' || ext === 'jpeg') {
+                    res.set('Content-Type', 'image/jpeg');
+                } else if (ext === 'gif') {
+                    res.set('Content-Type', 'image/gif');
+                } else if (ext === 'webp') {
+                    res.set('Content-Type', 'image/webp');
+                } else if (ext === 'svg') {
+                    res.set('Content-Type', 'image/svg+xml');
+                }
+                
+                // Prevent caching for images
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                res.set('Pragma', 'no-cache');
+                res.set('Expires', '0');
+            }
+        }));
+
+        // Then handle HTML files with access control
         app.use('/portfolios', async (req, res, next) => {
-            // Get the portfolio path from the request
-            const portfolioPath = req.path;
-            
-            // Check if the portfolio is public
+            // Skip access control for class viewer requests
+            if (req.headers.referer && 
+                (req.headers.referer.includes('/class-viewer.html') || 
+                 req.headers.referer.includes('/classes?') ||
+                 req.headers.referer.includes('/class-4-1.html') ||
+                 req.headers.referer.includes('/class-4-2.html'))) {
+                return next();
+            }
+
+            // Check if this is a static file request (images, CSS, etc.)
+            const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
+            if (isStaticFile) {
+                // For static files, try both extensions
+                const basePath = req.path.replace(/\.(jpg|jpeg|png)$/i, '');
+                const pngPath = path.join(__dirname, basePath + '.png');
+                const jpgPath = path.join(__dirname, basePath + '.jpg');
+                
+                if (fs.existsSync(pngPath)) {
+                    return res.sendFile(pngPath, {
+                        headers: {
+                            'Content-Type': 'image/png',
+                            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    });
+                } else if (fs.existsSync(jpgPath)) {
+                    return res.sendFile(jpgPath, {
+                        headers: {
+                            'Content-Type': 'image/jpeg',
+                            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    });
+                }
+                return next(); // Let express.static handle it if file not found
+            }
+
+            // For HTML files, proceed with access control
             const db = new sqlite3.Database(dbPath);
             try {
-                const user = await new Promise((resolve, reject) => {
-                    db.get('SELECT is_public FROM users WHERE portfolio_path LIKE ?', [`%${portfolioPath}%`], (err, row) => {
+                // Extract username from path
+                const pathParts = req.path.split('/');
+                const username = pathParts[pathParts.length - 1].replace('.html', '');
+                
+                // Get portfolio access status using case-insensitive username match
+                const portfolio = await new Promise((resolve, reject) => {
+                    const query = `
+                        SELECT 
+                            username,
+                            MAX(is_public) as is_public
+                        FROM users 
+                        WHERE LOWER(username) = LOWER(?)
+                        GROUP BY LOWER(username)
+                    `;
+                    
+                    db.get(query, [username], (err, row) => {
                         if (err) reject(err);
                         else resolve(row);
                     });
                 });
 
-                // If portfolio is public or user is authenticated, allow access
-                if (user?.is_public || req.session?.user) {
+                if (!portfolio) {
+                    return res.status(404).send('Portfolio not found');
+                }
+
+                // Check if user is authenticated
+                const isAuthenticated = req.session && req.session.user;
+                
+                // Convert is_public to number and use strict comparison
+                const isPublic = Number(portfolio.is_public) === 1;
+                
+                // Allow access if portfolio is public or user is authenticated
+                if (isPublic || isAuthenticated) {
                     next();
                 } else {
-                    // If not public and not authenticated, redirect to login
-                    res.redirect('/login.html');
+                    res.status(403).send('Access denied');
                 }
             } catch (error) {
                 console.error('Error checking portfolio access:', error);
-                next();
+                res.status(500).send('Internal server error');
             } finally {
                 db.close();
             }
         });
 
+        // Serve static files from portfolios directory
         app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
-            dotfiles: 'allow',
-            etag: true,
-            extensions: ['htm', 'html', 'png', 'jpg', 'jpeg', 'gif'],
-            index: false,
-            maxAge: '1d',
-            redirect: false,
-            setHeaders: function (res, path, stat) {
-                res.set('x-timestamp', Date.now());
-                res.set('Cache-Control', 'public, max-age=86400');
+            setHeaders: (res, path) => {
+                // Set cache control headers for images
+                if (/\.(jpg|jpeg|png|gif|webp|ico|svg)$/i.test(path)) {
+                    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                    res.set('Expires', '-1');
+                    res.set('Pragma', 'no-cache');
+                }
             }
         }));
 
@@ -226,10 +333,9 @@ async function initializeApp() {
 
             try {
                 const db = new sqlite3.Database(dbPath);
-                
-                // Get user
+                // Use COLLATE NOCASE for case-insensitive username matching
                 const user = await new Promise((resolve, reject) => {
-                    db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+                    db.get('SELECT * FROM users WHERE username COLLATE NOCASE = ?', [username], (err, row) => {
                         if (err) reject(err);
                         else resolve(row);
                     });
@@ -239,31 +345,19 @@ async function initializeApp() {
                     return res.status(401).json({ error: 'Invalid username or password' });
                 }
 
-                // Verify password
-                const isValid = await bcrypt.compare(password, user.password);
-                if (!isValid) {
+                const validPassword = await bcrypt.compare(password, user.password);
+                if (!validPassword) {
                     return res.status(401).json({ error: 'Invalid username or password' });
                 }
 
-                // Update last login time
-                await new Promise((resolve, reject) => {
-                    db.run(
-                        'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-                        [user.id],
-                        function(err) {
-                            if (err) reject(err);
-                            else resolve();
-                        }
-                    );
-                });
-
-                // Set up session
+                // Set up session using the original case from the database
                 req.session.user = {
                     id: user.id,
-                    username: user.username,
-                    portfolio_path: user.portfolio_path,
+                    username: user.username, // Use the case as stored in the database
+                    portfolio_path: user.portfolio_path, // Use the stored portfolio path
                     email: user.email,
-                    is_super_user: user.is_super_user
+                    is_super_user: user.is_super_user,
+                    role: user.role
                 };
 
                 // If remember me is checked, set a longer session expiry
@@ -271,13 +365,21 @@ async function initializeApp() {
                     req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
                 }
 
-                res.json({
-                    success: true,
-                    redirect: '/dashboard'
-                });
+                // Check if user is an admin and redirect accordingly
+                if (user.role === 'admin' || user.is_super_user) {
+                    res.json({
+                        success: true,
+                        redirect: '/admin.html'
+                    });
+                } else {
+                    res.json({
+                        success: true,
+                        redirect: '/dashboard'
+                    });
+                }
             } catch (error) {
                 console.error('Login error:', error);
-                res.status(500).json({ error: 'Server error' });
+                res.status(500).json({ error: 'Internal server error' });
             }
         });
 
@@ -387,56 +489,49 @@ async function initializeApp() {
             try {
                 console.log('\n=== Getting All Privacy States ===');
                 
+                // Set strict no-cache headers
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                res.set('Expires', '-1');
+                res.set('Pragma', 'no-cache');
+                
                 const privacyStates = await new Promise((resolve, reject) => {
-                    db.all('SELECT portfolio_path, is_public FROM users', [], (err, rows) => {
+                    // Modified query to handle duplicates and case sensitivity
+                    const query = `
+                        WITH RankedUsers AS (
+                            SELECT 
+                                username,
+                                portfolio_path,
+                                is_public,
+                                ROW_NUMBER() OVER (
+                                    PARTITION BY LOWER(username), LOWER(portfolio_path) 
+                                    ORDER BY id DESC
+                                ) as rn
+                            FROM users 
+                            WHERE portfolio_path IS NOT NULL
+                            AND username IS NOT NULL
+                        )
+                        SELECT username, portfolio_path, is_public
+                        FROM RankedUsers
+                        WHERE rn = 1
+                    `;
+                    
+                    db.all(query, [], (err, rows) => {
                         if (err) {
                             console.error('Database error:', err);
                             reject(err);
                         } else {
                             const stateMap = {};
                             
-                            // Group portfolios by class for better logging
-                            const p41Portfolios = [];
-                            const p42Portfolios = [];
-                            const otherPortfolios = [];
-                            
                             rows.forEach(row => {
-                                // Ensure strict boolean values - only true if is_public is exactly 1
-                                stateMap[row.portfolio_path] = row.is_public === 1;
-                                
-                                // Categorize for logging
-                                const pathLower = row.portfolio_path.toLowerCase();
-                                if (pathLower.includes('p4-1')) {
-                                    p41Portfolios.push({
-                                        path: row.portfolio_path,
-                                        isPublic: row.is_public === 1
-                                    });
-                                } else if (pathLower.includes('p4-2')) {
-                                    p42Portfolios.push({
-                                        path: row.portfolio_path,
-                                        isPublic: row.is_public === 1
-                                    });
-                                } else {
-                                    otherPortfolios.push({
-                                        path: row.portfolio_path,
-                                        isPublic: row.is_public === 1
-                                    });
+                                if (row.portfolio_path) {
+                                    // Convert to number and use strict comparison
+                                    const isPublic = Number(row.is_public) === 1;
+                                    stateMap[row.portfolio_path] = isPublic;
+                                    console.log(`Privacy state for ${row.username}: path=${row.portfolio_path}, public=${isPublic}`);
                                 }
                             });
                             
-                            console.log(`Found privacy states for ${Object.keys(stateMap).length} portfolios`);
-                            console.log(`Class 4/1: ${p41Portfolios.length} portfolios`);
-                            p41Portfolios.forEach(p => {
-                                console.log(`  - ${p.path}: ${p.isPublic ? 'Public' : 'Private'}`);
-                            });
-                            
-                            console.log(`Class 4/2: ${p42Portfolios.length} portfolios`);
-                            p42Portfolios.forEach(p => {
-                                console.log(`  - ${p.path}: ${p.isPublic ? 'Public' : 'Private'}`);
-                            });
-                            
-                            console.log(`Other classes: ${otherPortfolios.length} portfolios`);
-                            
+                            console.log('Total privacy states:', Object.keys(stateMap).length);
                             resolve(stateMap);
                         }
                     });
@@ -630,8 +725,11 @@ async function initializeApp() {
 
         // Create server instance
         app.server = app.listen(port, () => {
-            console.log(`Server running on port ${port}`);
-            console.log('Running in', isProduction ? 'production mode' : 'development mode');
+            console.log('\n=== Server Information ===');
+            console.log(`Server running on: http://localhost:${port}`);
+            console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
+            console.log(`Session length: ${sessionConfig.cookie.maxAge / (24 * 60 * 60 * 1000)} days`);
+            console.log('=========================\n');
         });
 
     } catch (err) {
@@ -703,8 +801,9 @@ process.on('SIGTERM', () => {
 
 // Routes
 app.post('/register', async (req, res) => {
-    const { username, password, portfolio_path, email } = req.body;
+    const { username, password, portfolio_path } = req.body;
 
+    // Validate input
     if (!username || !password || !portfolio_path) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -713,23 +812,23 @@ app.post('/register', async (req, res) => {
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // Insert the user with email
+        // Generate avatar path based on portfolio path
+        const portfolioDir = path.dirname(portfolio_path);
+        const avatar_path = path.join(portfolioDir, 'images', path.basename(portfolioDir) + '.jpg');
+        
+        // Insert the user
         const db = new sqlite3.Database(dbPath);
         
-        await new Promise((resolve, reject) => {
+        const result = await new Promise((resolve, reject) => {
             db.run(
-                'INSERT INTO users (username, email, password, portfolio_path, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
-                [username, email, hashedPassword, portfolio_path],
+                'INSERT INTO users (username, password, portfolio_path, avatar_path, created_at, is_public) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 0)',
+                [username, hashedPassword, portfolio_path, avatar_path],
                 function(err) {
                     if (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
-                            if (err.message.includes('email')) {
-                                reject(new Error('Email already registered'));
-                            } else {
-                                reject(new Error('Username already taken'));
-                            }
+                            reject(new Error('Username already taken'));
                         } else {
-                        reject(err);
+                            reject(err);
                         }
                     } else {
                         resolve(this.lastID);
@@ -738,19 +837,20 @@ app.post('/register', async (req, res) => {
             );
         });
 
-        // Set up session
+        // Set up session with the correct user ID
         req.session.user = {
-            id: this.lastID,
+            id: result,
             username,
             portfolio_path,
-            email
+            avatar_path,
+            is_public: false
         };
         
         // Update last login time
         await new Promise((resolve, reject) => {
             db.run(
                 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-                [this.lastID],
+                [result],
                 function(err) {
                     if (err) reject(err);
                     else resolve();
@@ -900,43 +1000,204 @@ app.get('/classes', (req, res) => {
 // API endpoint to get students for a class
 app.get('/api/classes/:classId/students', async (req, res) => {
     const classId = req.params.classId;
-    const portfolioPath = req.query.portfolioPath;
     const db = new sqlite3.Database(dbPath);
     
     try {
-        // Log the request for debugging
         console.log(`\n==== STUDENT FETCH DEBUG ====`);
         console.log(`Class ID: ${classId}`);
-        console.log(`Portfolio Path: ${portfolioPath}`);
         
-        if (!portfolioPath) {
-            return res.status(400).json({ error: 'portfolioPath parameter is required' });
+        // First try to load from JSON file
+        let jsonStudents = [];
+        const jsonFile = path.join(__dirname, 'data', 'students', 
+            classId.startsWith('P4-') ? `PP-${classId}.json` :
+            classId.startsWith('M2-') ? `PBS-${classId}.json` :
+            `${classId}.json`
+        );
+
+        console.log(`Loading from JSON file: ${jsonFile}`);
+        if (fs.existsSync(jsonFile)) {
+            console.log(`Found JSON file: ${jsonFile}`);
+            const jsonData = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
+            
+            if (jsonData.students) {
+                jsonStudents = jsonData.students.map(student => {
+                    // Use the full username with student number for paths
+                    const fullUsername = student.username; // e.g. peter_42_001
+                    const displayName = student.nickname; // e.g. Peter42
+                    
+                    // Construct paths using the full username for directories
+                    const studentPath = `/portfolios/PhumdhamPrimary/classes/${classId}/${fullUsername}`;
+                    const portfolioPath = `${studentPath}/${fullUsername}.html`;
+                    
+                    // Check for avatar file with multiple possible names
+                    let avatarPath = null;
+                    const imagesDir = path.join(__dirname, studentPath.substring(1), 'images');
+                    
+                    if (fs.existsSync(imagesDir)) {
+                        // Get all files in the images directory
+                        const files = fs.readdirSync(imagesDir);
+                        console.log(`Found files in ${imagesDir}:`, files);
+                        
+                        // Try to find a matching image file
+                        const possibleNames = [
+                            fullUsername + '.png',
+                            fullUsername + '.jpg',
+                            displayName + '.png',
+                            displayName + '.jpg'
+                        ];
+                        
+                        // First try exact match
+                        for (const file of files) {
+                            if (possibleNames.includes(file)) {
+                                avatarPath = `${studentPath}/images/${file}`;
+                                console.log(`Found exact match for ${fullUsername}:`, file);
+                                break;
+                            }
+                        }
+                        
+                        // If no exact match, try case-insensitive match
+                        if (!avatarPath) {
+                            const lowerPossibleNames = possibleNames.map(name => name.toLowerCase());
+                            for (const file of files) {
+                                if (lowerPossibleNames.includes(file.toLowerCase())) {
+                                    avatarPath = `${studentPath}/images/${file}`;
+                                    console.log(`Found case-insensitive match for ${fullUsername}:`, file);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // If still no match, try any image file with the username in it
+                        if (!avatarPath) {
+                            const baseUsername = fullUsername.split('_')[0].toLowerCase();
+                            for (const file of files) {
+                                if (file.toLowerCase().includes(baseUsername) && 
+                                    (file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.jpg'))) {
+                                    avatarPath = `${studentPath}/images/${file}`;
+                                    console.log(`Found partial match for ${fullUsername}:`, file);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!avatarPath) {
+                            console.log(`No matching avatar found for ${fullUsername} in files:`, files);
+                        }
+                    } else {
+                        console.log(`Images directory does not exist for ${fullUsername}: ${imagesDir}`);
+                    }
+                    
+                    return {
+                        username: fullUsername,
+                        displayName: displayName,
+                        firstName: student.firstName,
+                        lastName: student.lastName,
+                        nickname: student.nickname,
+                        portfolio_path: portfolioPath,
+                        avatar_path: avatarPath || '/images/default-avatar.png',
+                        is_registered: false
+                    };
+                });
+            }
         }
-        
-        // Get all students from the database
-        const students = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM users WHERE portfolio_path LIKE ?', [`%${portfolioPath}%`], (err, rows) => {
+
+        // Get registered students from database
+        const dbStudents = await new Promise((resolve, reject) => {
+            const pathPattern = classId.startsWith('P4-') ?
+                `/portfolios/PhumdhamPrimary/classes/${classId}/%` :
+                classId.startsWith('M2-') ?
+                `/portfolios/PBSChonburi/classes/${classId}/%` :
+                `/portfolios/${classId}/%`;
+            
+            // Query for all student info including registration status
+            const query = `
+                SELECT 
+                    username, 
+                    portfolio_path, 
+                    avatar_path, 
+                    is_public,
+                    1 as is_registered
+                FROM users 
+                WHERE LOWER(portfolio_path) LIKE LOWER(?)
+            `;
+            
+            console.log('Executing query:', query);
+            console.log('With path pattern:', pathPattern);
+            
+            db.all(query, [pathPattern], (err, rows) => {
                 if (err) {
                     console.error('Database error:', err);
                     reject(err);
+                    return;
                 }
                 console.log(`Found ${rows?.length || 0} students in database`);
-                
-                // Filter to only show public portfolios if user is not authenticated
-                if (!req.session?.user && !req.session?.authenticated) {
-                    console.log('User not authenticated, showing only public portfolios');
-                    rows = rows.filter(student => student.is_public === 1);
+                if (rows?.length > 0) {
+                    console.log('Sample database students:');
+                    rows.slice(0, 3).forEach(row => {
+                        console.log(`- ${row.username}: ${row.portfolio_path} (Public: ${row.is_public === 1})`);
+                    });
                 }
-                
                 resolve(rows || []);
             });
         });
+
+        // Create a map of database students using case-insensitive keys
+        const dbStudentMap = new Map();
+        dbStudents.forEach(student => {
+            const lowerUsername = student.username.toLowerCase();
+            console.log(`Adding to map: ${lowerUsername} -> ${student.username} (${student.portfolio_path})`);
+            dbStudentMap.set(lowerUsername, {
+                ...student,
+                originalUsername: student.username
+            });
+        });
+
+        // Merge JSON and database results
+        const mergedStudents = jsonStudents.map(student => {
+            const lowerUsername = student.username.toLowerCase();
+            const dbStudent = dbStudentMap.get(lowerUsername);
+            console.log(`Merging ${student.username} (${lowerUsername}):`, 
+                dbStudent ? `found in DB as ${dbStudent.originalUsername}` : 'not in DB');
+            
+            if (dbStudent) {
+                const merged = {
+                    ...student,
+                    username: dbStudent.originalUsername, // Use the original case from database
+                    is_public: dbStudent.is_public === 1,
+                    is_registered: true,
+                    portfolio_path: dbStudent.portfolio_path,
+                    avatar_path: dbStudent.avatar_path || student.avatar_path
+                };
+                console.log(`Merged result for ${student.username}:`, {
+                    username: merged.username,
+                    is_public: merged.is_public,
+                    is_registered: merged.is_registered,
+                    portfolio_path: merged.portfolio_path
+                });
+                return merged;
+            }
+            
+            console.log(`No DB match for ${student.username}, using JSON data only`);
+            return {
+                ...student,
+                is_public: false,
+                is_registered: false
+            };
+        });
+
+        console.log('Returning students with paths:');
+        mergedStudents.forEach(student => {
+            console.log(`${student.username}:`);
+            console.log(`  Portfolio: ${student.portfolio_path}`);
+            console.log(`  Avatar: ${student.avatar_path}`);
+            console.log(`  Registered: ${student.is_registered}`);
+            console.log(`  Public: ${student.is_public}`);
+        });
         
-        console.log(`Returning ${students.length} students`);
-        res.json(students);
+        res.json(mergedStudents);
     } catch (error) {
-        console.error('Error getting students:', error);
-        res.status(500).json({ error: 'Error getting students' });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     } finally {
         db.close();
     }
@@ -946,16 +1207,63 @@ app.get('/api/classes/:classId/students', async (req, res) => {
 app.get('/portfolios/*', async (req, res, next) => {
     const portfolioPath = req.path;
     
+    // Skip access control for images in class viewer context
+    if (req.headers.referer && 
+        (req.headers.referer.includes('/class-viewer.html') || 
+         req.headers.referer.includes('/classes?') ||
+         req.headers.referer.includes('/class-4-1.html') ||
+         req.headers.referer.includes('/class-4-2.html'))) {
+        return next();
+    }
+    
     // Check if this is a static file request (images, css, js, etc)
     const staticFileExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.css', '.js', '.webp', '.ico', '.svg'];
     if (staticFileExtensions.some(ext => portfolioPath.toLowerCase().endsWith(ext))) {
-        // Skip validation for static files
+        // For images in the images directory, we need to check portfolio access
+        if (portfolioPath.includes('/images/')) {
+            // Extract the portfolio path from the image path
+            const pathParts = portfolioPath.split('/');
+            const studentIndex = pathParts.indexOf('images') - 1;
+            if (studentIndex > 0) {
+                const studentName = pathParts[studentIndex];
+                const portfolioHtmlPath = pathParts.slice(0, studentIndex + 1).join('/') + `/${studentName}.html`;
+                
+                try {
+                    const db = new sqlite3.Database(dbPath);
+                    const portfolio = await new Promise((resolve, reject) => {
+                        db.get('SELECT is_public FROM users WHERE portfolio_path = ?', [portfolioHtmlPath], (err, row) => {
+                            if (err) reject(err);
+                            else resolve(row);
+                        });
+                    });
+                    
+                    const isAuthenticated = req.session?.authenticated || !!req.session?.user;
+                    const isVisitor = req.session?.userType === 'visitor';
+                    const isOwnPortfolio = req.session?.user?.username === studentName;
+                    
+                    if (portfolio?.is_public === 1 || (isAuthenticated && (isOwnPortfolio || !isVisitor))) {
+                        return next();
+                    }
+                    
+                    return res.status(403).send('Access denied');
+                } catch (error) {
+                    console.error('Error checking image access:', error);
+                    return res.status(500).send('Internal server error');
+                } finally {
+                    db.close();
+                }
+            }
+        }
+        // For other static files (css, js, etc), allow access
         return next();
     }
     
     console.log('\n=== Portfolio Access Attempt ===');
     console.log('Accessing portfolio:', portfolioPath);
     console.log('Current directory:', __dirname);
+    console.log('Session:', req.session);
+    console.log('User type:', req.session?.userType);
+    console.log('Visitor ID:', req.session?.visitorId);
 
     try {
         // First check if the portfolios directory exists
@@ -966,95 +1274,125 @@ app.get('/portfolios/*', async (req, res, next) => {
             console.log('Created portfolios directory');
         }
 
-        // Create Class1 directory if it doesn't exist (for current students)
-        const class1Dir = path.join(portfoliosDir, 'P4-1');
-        if (!fs.existsSync(class1Dir)) {
-            console.log('P4-1 directory does not exist:', class1Dir);
-            fs.mkdirSync(class1Dir, { recursive: true });
-            console.log('Created P4-1 directory');
-        }
-
-        // Create Class2 directory if it doesn't exist (for future students)
-        const class2Dir = path.join(portfoliosDir, 'P4-2');
-        if (!fs.existsSync(class2Dir)) {
-            console.log('P4-2 directory does not exist:', class2Dir);
-            fs.mkdirSync(class2Dir, { recursive: true });
-            console.log('Created P4-2 directory');
-        }
-
-        // Create M2 directory if it doesn't exist
-        const m2Dir = path.join(portfoliosDir, 'M2-001');
-        if (!fs.existsSync(m2Dir)) {
-            console.log('M2-001 directory does not exist:', m2Dir);
-            fs.mkdirSync(m2Dir, { recursive: true });
-            console.log('Created M2-001 directory');
-        }
-
-        // Check if the file exists
-        const fullPath = path.join(__dirname, portfolioPath);
-        console.log('Full path:', fullPath);
+        // Get all schools from configuration
+        const schools = schoolConfig.getSchools();
         
-        const fileExists = fs.existsSync(fullPath);
-        console.log('File exists:', fileExists);
+        // Create school and class directories if they don't exist
+        schools.forEach(school => {
+            const schoolDir = path.join(portfoliosDir, school.id);
+            if (!fs.existsSync(schoolDir)) {
+                console.log(`Creating school directory: ${schoolDir}`);
+                fs.mkdirSync(schoolDir, { recursive: true });
+            }
+            
+            const classesDir = path.join(schoolDir, 'classes');
+            if (!fs.existsSync(classesDir)) {
+                console.log(`Creating classes directory: ${classesDir}`);
+                fs.mkdirSync(classesDir, { recursive: true });
+            }
+            
+            school.classes.forEach(cls => {
+                const classDir = path.join(classesDir, cls.id);
+                if (!fs.existsSync(classDir)) {
+                    console.log(`Creating class directory: ${classDir}`);
+                    fs.mkdirSync(classDir, { recursive: true });
+                }
+            });
+        });
 
-        if (!fileExists) {
-            console.log('Portfolio file not found:', fullPath);
-            return res.status(404).send('Portfolio not found');
-        }
+        // Check access based on user type and authentication status
+        const isAuthenticated = req.session?.authenticated || !!req.session?.user;
+        const isVisitor = req.session?.userType === 'visitor';
+        console.log('Access status:', { isAuthenticated, isVisitor });
 
-        const result = await new Promise((resolve, reject) => {
-            db.get('SELECT is_public, username FROM users WHERE portfolio_path = ?',
-                [portfolioPath],
-                (err, row) => {
+        // Get the actual portfolio path from the database
+        const db = new sqlite3.Database(dbPath);
+        try {
+            // First try exact match
+            let portfolio = await new Promise((resolve, reject) => {
+                db.get('SELECT is_public, portfolio_path FROM users WHERE portfolio_path = ?', [portfolioPath], (err, row) => {
                     if (err) {
-                        console.error('Database error:', err);
                         reject(err);
-                    } else {
-                        console.log('Database result:', row);
-                        resolve(row);
+                        return;
                     }
+                    resolve(row);
+                });
+            });
+
+            // If not found, try to find it with the old path structure
+            if (!portfolio) {
+                console.log('Portfolio not found with exact path, trying old path structure');
+                const pathParts = portfolioPath.split('/');
+                if (pathParts.length >= 4) {
+                    const classId = pathParts[2]; // e.g., P4-1
+                    const username = pathParts[3]; // e.g., Peter41
+                    
+                    // Find the school and class that match this path
+                    for (const school of schools) {
+                        const class_ = school.classes.find(c => c.id === classId);
+                        if (class_) {
+                            const newPath = `${class_.portfolioPath}/${username}/${username}.html`;
+                            console.log('Trying new path:', newPath);
+                            
+                            try {
+                                portfolio = await new Promise((resolve, reject) => {
+                                    db.get('SELECT is_public, portfolio_path FROM users WHERE portfolio_path = ?', [newPath], (err, row) => {
+                    if (err) {
+                        reject(err);
+                                            return;
+                    }
+                                        resolve(row);
                 });
         });
 
-        // If portfolio is not registered, deny access
-        if (!result) {
-            console.log('Portfolio not registered in database:', portfolioPath);
-            return res.status(404).send('Portfolio not found');
-        }
-
-        // If portfolio is public, allow access to everyone
-        if (result.is_public) {
-            console.log('Access granted to public portfolio');
-            return next();
-        }
-
-        // If user is logged in
-        if (req.session?.user) {
-            console.log('Authenticated access attempt by:', req.session.user.username);
-            console.log('Portfolio owner:', result.username);
-            console.log('Is public:', result.is_public);
-            
-            // Check if the user is a parent
-            const isParent = req.session.user.username.toLowerCase().startsWith('parent-');
-            
-            if (isParent) {
-                const childName = req.session.user.username.substring('parent-'.length);
-                if (result.username === childName) {
-                    console.log('Access granted to parent');
-                    return next();
+                                if (portfolio) {
+                                    console.log('Found portfolio with new path structure');
+                                    // Redirect to the new path
+                                    return res.redirect(portfolio.portfolio_path);
+                                }
+                            } catch (err) {
+                                console.error('Error looking up portfolio:', err);
+                                // Continue searching other schools/classes
+                            }
+                        }
+                    }
                 }
-            } else if (result.username === req.session.user.username) {
-                console.log('Access granted to user');
-                return next();
             }
-        }
 
-        console.log('Access denied to portfolio:', portfolioPath);
-        res.status(403).send('Access denied');
+            // After all lookups are done, check authentication
+            if (!portfolio) {
+                console.log('Portfolio not found');
+                res.status(404).send('Portfolio not found');
+                return;
+            }
+
+            if (!isAuthenticated && !isVisitor) {
+                // For completely unauthenticated users, check if the portfolio is public
+                if (!portfolio.is_public) {
+                    console.log('Portfolio is private. Redirecting to login.');
+                    res.redirect('/login.html');
+                    return;
+                }
+            } else if (isVisitor) {
+                // For registered visitors, allow access to public portfolios
+                if (!portfolio.is_public) {
+                    console.log('Portfolio is private. Access denied for visitor.');
+                    res.status(403).send('This portfolio is private. Only registered users can view it.');
+                    return;
+                }
+            }
+
+            // If we get here, either:
+            // 1. The user is authenticated (regular user)
+            // 2. The user is a registered visitor and the portfolio is public
+            // 3. The portfolio is public
+            next();
+        } finally {
+            db.close();
+        }
     } catch (error) {
-        console.error('Error checking portfolio access:', error);
-        console.error('Stack trace:', error.stack);
-        res.status(500).send('Server error');
+        console.error('Error in portfolio access middleware:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 
@@ -1143,53 +1481,78 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
         // Create admin accounts
         const adminAccounts = [
-            { username: 'peter41', password: 'Peter2025AA', email: 'sjchpb@gmail.com', role: 'admin' },
-            { username: 'peter42', password: 'Peter2025BB', email: 'sjchpb@gmail.com', role: 'admin' }
+            { 
+                username: 'admin', 
+                password: 'admin123', 
+                email: 'admin@school.edu', 
+                role: 'admin',
+                is_super_user: true
+            }
         ];
 
         // Create admin accounts if they don't exist
+        async function setupAdminAccounts() {
         for (const account of adminAccounts) {
-            db.get('SELECT * FROM users WHERE username = ?', [account.username], (err, row) => {
+                try {
+                    // First, remove any existing duplicates with different case
+                    await new Promise((resolve, reject) => {
+                        db.run(
+                            'DELETE FROM users WHERE LOWER(username) = LOWER(?) AND username != ?',
+                            [account.username, account.username],
+                            (err) => {
                 if (err) {
-                    console.error(`Error checking for ${account.username}:`, err);
-                    return;
-                }
-                
-                if (!row) {
-                    console.log(`Creating admin account for ${account.username}...`);
-                    bcrypt.hash(account.password, 10, (err, hashedPassword) => {
-                        if (err) {
-                            console.error(`Error hashing password for ${account.username}:`, err);
-                            return;
-                        }
+                                    console.error(`Error removing duplicates for ${account.username}:`, err);
+                                }
+                                resolve();
+                            }
+                        );
+                    });
+
+                    // Then check if the exact account exists
+                    const existingAccount = await new Promise((resolve, reject) => {
+                        db.get(
+                            'SELECT * FROM users WHERE username = ?',
+                            [account.username],
+                            (err, row) => {
+                                if (err) reject(err);
+                                else resolve(row);
+                            }
+                        );
+                    });
+
+                    if (!existingAccount) {
+                        console.log(`Creating admin account for ${account.username}...`);
+                        const hashedPassword = await bcrypt.hash(account.password, 10);
                         
+                        await new Promise((resolve, reject) => {
                         db.run(
                             `INSERT INTO users (
                                 username, 
                                 password, 
                                 email, 
                                 role, 
-                                is_super_user,
-                                portfolio_path
-                            ) VALUES (?, ?, ?, ?, 1, ?)`,
+                                is_super_user
+                            ) VALUES (?, ?, ?, ?, 1)`,
                             [
                                 account.username,
                                 hashedPassword,
                                 account.email,
-                                account.role,
-                                `/portfolios/${account.username}`
+                                account.role
                             ],
                             (err) => {
                                 if (err) {
                                     console.error(`Error creating ${account.username}:`, err);
+                                        reject(err);
                                 } else {
                                     console.log(`Successfully created admin account for ${account.username}`);
+                                        resolve();
                                 }
                             }
                         );
                     });
                 } else {
                     // Update existing admin account to ensure correct settings
+                        await new Promise((resolve, reject) => {
                     db.run(
                         `UPDATE users SET 
                             is_super_user = 1,
@@ -1199,14 +1562,25 @@ const db = new sqlite3.Database(dbPath, (err) => {
                         (err) => {
                             if (err) {
                                 console.error(`Error updating ${account.username}:`, err);
+                                        reject(err);
                             } else {
                                 console.log(`Verified admin settings for ${account.username}`);
-                            }
-                        }
-                    );
+                                        resolve();
+                                    }
+                                }
+                            );
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error setting up admin account for ${account.username}:`, error);
                 }
-            });
+            }
         }
+
+        // Run the admin account setup
+        setupAdminAccounts().catch(err => {
+            console.error('Error in admin account setup:', err);
+        });
     });
 });
 
@@ -1376,121 +1750,165 @@ app.post('/public-login', async (req, res) => {
     }
 });
 
-// Special endpoint for Phumdham students
+// API endpoint for Phumdham students
 app.get('/api/phumdham-students/:classId', async (req, res) => {
-    const classId = req.params.classId;
     const db = new sqlite3.Database(dbPath);
-    
     try {
+        const classId = req.params.classId;
         console.log(`\n==== PHUMDHAM STUDENTS QUERY ====`);
         console.log(`Class ID: ${classId}`);
-        console.log(`Session:`, req.session);
+        console.log(`Database Path: ${dbPath}`);
         
-        // Check authentication
-        const isAuthenticated = req.session?.authenticated || !!req.session?.user;
-        const isVisitor = req.session?.userType === 'visitor' || req.session?.user?.userType === 'visitor';
-        console.log('Auth status:', { isAuthenticated, isVisitor });
-        
-        // Get all students from the database first
-        const dbStudents = await new Promise((resolve, reject) => {
-            // Use multiple patterns to match both with and without leading slash
-            const patterns = [
-                'P4-1%',           // No slash
-                '/P4-1%',          // With slash
-                '%/P4-1/%',        // Full path with slashes
-                'portfolios/P4-1%', // Standard format
-                '/portfolios/P4-1%' // Standard format with leading slash
-            ];
-            
-            // Build query to match any pattern
-            const placeholders = patterns.map(() => 'portfolio_path LIKE ?').join(' OR ');
-            const query = `
-                SELECT username, portfolio_path, avatar_path, is_public, first_name, last_name, nickname 
-                FROM users 
-                WHERE ${placeholders}
-            `;
-            
-            console.log('Executing query:', query);
-            console.log('With patterns:', patterns);
-            
-            db.all(query, patterns, (err, rows) => {
+        // First check if we can connect to the database
+        await new Promise((resolve, reject) => {
+            db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
                 if (err) {
-                    console.error('Database error:', err);
+                    console.error('Database connection error:', err);
                     reject(err);
                     return;
                 }
-                
-                if (rows?.length > 0) {
-                    console.log(`Found ${rows.length} students in database`);
-                    console.log('Sample students:');
-                    rows.slice(0, 3).forEach(student => {
-                        console.log(` - ${student.username}: ${student.portfolio_path} (${student.is_public ? 'Public' : 'Private'})`);
-                    });
-                } else {
-                    console.log('No students found in database');
+                console.log(`Database contains ${row.count} total users`);
+                resolve();
+            });
+        });
+        
+        // Get the class configuration
+        const phumdhamSchool = schoolConfig.getSchool('PhumdhamPrimary');
+        if (!phumdhamSchool) {
+            console.error('Phumdham school configuration not found');
+            return res.status(404).json({ error: 'School not found' });
+        }
+        
+        // Get class configuration
+        const targetClass = phumdhamSchool.classes.find(c => c.id === classId);
+        if (!targetClass) {
+            console.error('Class configuration not found:', classId);
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        
+        // Use the configured portfolio path
+        const portfolioPath = targetClass.portfolioPath;
+        console.log('Using portfolio path:', portfolioPath);
+        
+        // First try exact match
+        let students = await new Promise((resolve, reject) => {
+            const query = `SELECT username, portfolio_path, avatar_path, is_public 
+                         FROM users 
+                         WHERE portfolio_path = ?`;
+            console.log('Trying exact match query:', query);
+            console.log('With path:', portfolioPath);
+            
+            db.all(query, [portfolioPath], (err, rows) => {
+                if (err) {
+                    console.error('Database error on exact match:', err);
+                    reject(err);
+                    return;
                 }
-                
+                console.log(`Found ${rows?.length || 0} students with exact match`);
                 resolve(rows || []);
             });
         });
         
-        // Then check the filesystem
-        const folderPath = path.join(__dirname, 'portfolios', 'P4-1');
-        let filesystemStudents = [];
-        
-        if (fs.existsSync(folderPath)) {
-            console.log(`Checking filesystem path: ${folderPath}`);
-            const files = fs.readdirSync(folderPath, { withFileTypes: true });
-            filesystemStudents = files
-                .filter(file => file.isDirectory())
-                .map(dir => {
-                    const { firstName, lastName, nickname } = parseStudentName(dir.name);
-                    const portfolioPath = `/portfolios/P4-1/${dir.name}/index.html`;
-                    
-                    return {
-                        username: dir.name,
-                        portfolio_path: portfolioPath,
-                        avatar_path: `/portfolios/P4-1/${dir.name}/images/${dir.name}.png`,
-                        is_public: false, // Set to private by default
-                        first_name: firstName,
-                        last_name: lastName,
-                        nickname: nickname
-                    };
-                });
-            
-            console.log(`Found ${filesystemStudents.length} students in filesystem`);
-        } else {
-            console.log(`Filesystem path not found: ${folderPath}`);
+        // If no results with exact match, try with LIKE
+        if (students.length === 0) {
+            students = await new Promise((resolve, reject) => {
+                const query = `SELECT username, portfolio_path, avatar_path, is_public 
+                             FROM users 
+                             WHERE portfolio_path LIKE ?`;
+                console.log('Trying LIKE query:', query);
+                console.log('With pattern:', `${portfolioPath}%`);
+                
+                db.all(query, [`${portfolioPath}%`], (err, rows) => {
+                    if (err) {
+                        console.error('Database error on LIKE match:', err);
+                        reject(err);
+                        return;
+                    }
+                    console.log(`Found ${rows?.length || 0} students with LIKE pattern`);
+                if (rows?.length > 0) {
+                        console.log('Sample portfolio paths:');
+                        rows.slice(0, 3).forEach(row => {
+                            console.log(` - ${row.portfolio_path}`);
+                        });
+                    }
+                resolve(rows || []);
+            });
+        });
         }
         
-        // Merge database and filesystem results, preferring database entries
-        const dbUsernames = new Set(dbStudents.map(s => s.username));
-        const allStudents = [
-            ...dbStudents,
-            ...filesystemStudents.filter(s => !dbUsernames.has(s.username))
-        ];
+        // If still no results, try filesystem as fallback
+        if (students.length === 0) {
+            console.log('No students found in database, checking filesystem...');
+            const filesystemPath = path.join(__dirname, portfolioPath);
+            if (fs.existsSync(filesystemPath)) {
+                const files = fs.readdirSync(filesystemPath);
+                console.log(`Found ${files.length} items in filesystem`);
+                
+                students = files
+                    .filter(f => !f.startsWith('.'))
+                    .map(file => {
+                        const studentPath = path.join(portfolioPath, file);
+                        const imagesPath = path.join(__dirname, studentPath, 'images');
+                        let avatarPath = null;
+
+                        // Check for both PNG and JPG files
+                        if (fs.existsSync(imagesPath)) {
+                            const pngPath = path.join(imagesPath, `${file}.png`);
+                            const jpgPath = path.join(imagesPath, `${file}.jpg`);
+                            
+                            if (fs.existsSync(pngPath)) {
+                                avatarPath = `/portfolios/PhumdhamPrimary/classes/${classId}/${file}/images/${file}.png`;
+                            } else if (fs.existsSync(jpgPath)) {
+                                avatarPath = `/portfolios/PhumdhamPrimary/classes/${classId}/${file}/images/${file}.jpg`;
+                            }
+                        }
+                    
+                    return {
+                            username: file,
+                            portfolio_path: `/portfolios/PhumdhamPrimary/classes/${classId}/${file}/${file}.html`,
+                            avatar_path: avatarPath || '/images/default-avatar.png',
+                            is_public: false
+                    };
+                });
+            }
+        } else {
+            // For database results, verify and correct avatar paths
+            students = await Promise.all(students.map(async student => {
+                if (!student.avatar_path) return student;
+
+                // Get the base path and check both PNG and JPG
+                const basePath = `/portfolios/PhumdhamPrimary/classes/${classId}/${student.username}/images/${student.username}`;
+                const fullPngPath = path.join(__dirname, basePath + '.png');
+                const fullJpgPath = path.join(__dirname, basePath + '.jpg');
+
+                if (fs.existsSync(fullPngPath)) {
+                    student.avatar_path = basePath + '.png';
+                } else if (fs.existsSync(fullJpgPath)) {
+                    student.avatar_path = basePath + '.jpg';
+        } else {
+                    student.avatar_path = '/images/default-avatar.png';
+                }
+
+                return student;
+            }));
+        }
         
-        // Process each student
-        const processedStudents = allStudents.map(student => ({
-            ...student,
-            is_public: student.is_public === 1 || student.is_public === true,
-            first_name: student.first_name || student.username,
-            nickname: student.nickname || student.first_name || student.username
-        }));
-        
-        console.log(`Found ${processedStudents.length} total students`);
-        if (processedStudents.length > 0) {
-            console.log('First 3 students in response:');
-            processedStudents.slice(0, 3).forEach(student => {
-                console.log(` - ${student.username}: ${student.portfolio_path} (${student.is_public ? 'Public' : 'Private'})`);
+        console.log(`Returning ${students.length} students`);
+        if (students.length > 0) {
+            console.log('Sample of returned students:');
+            students.slice(0, 3).forEach(s => {
+                console.log(` - ${s.username}: ${s.portfolio_path}`);
             });
         }
         
-        res.json(processedStudents);
-        
+        res.json(students);
     } catch (error) {
-        console.error('Error in Phumdham students API:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error in phumdham-students endpoint:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch students',
+            details: error.message,
+            dbPath: dbPath
+        });
     } finally {
         db.close();
     }
@@ -1593,16 +2011,16 @@ app.get('/api/filesystem-portfolios/:classId', (req, res) => {
                         try {
                             const imagesPath = path.join(studentPath, 'images');
                             if (fs.existsSync(imagesPath)) {
-                                const imageFiles = fs.readdirSync(imagesPath).filter(file => 
-                                    file.toLowerCase().endsWith('.jpg') || 
-                                    file.toLowerCase().endsWith('.png') || 
-                                    file.toLowerCase().endsWith('.jpeg')
-                                );
+                                // Try PNG first, then JPG
+                                const pngPath = path.join(imagesPath, `${studentName}.png`);
+                                const jpgPath = path.join(imagesPath, `${studentName}.jpg`);
                                 
-                                if (imageFiles.length > 0) {
-                                    // Use exact filename from filesystem
-                                    avatarPath = `/portfolios/${baseFolderName}/${studentName}/images/${imageFiles[0]}`;
-                                    console.log(`   Found avatar: ${imageFiles[0]}`);
+                                if (fs.existsSync(pngPath)) {
+                                    avatarPath = `/portfolios/${baseFolderName}/${studentName}/images/${studentName}.png`;
+                                    console.log(`   Found PNG avatar: ${studentName}.png`);
+                                } else if (fs.existsSync(jpgPath)) {
+                                    avatarPath = `/portfolios/${baseFolderName}/${studentName}/images/${studentName}.jpg`;
+                                    console.log(`   Found JPG avatar: ${studentName}.jpg`);
                                 }
                             }
                         } catch (err) {
@@ -1741,7 +2159,7 @@ app.get('/api/m2-students', async (req, res) => {
                             username: studentName,
                             portfolio_path: `${portfolioPath}/${studentName}/${htmlFile}`,
                             avatar_path: `${portfolioPath}/${studentName}/images/${studentName}.jpg`,
-                            is_public: dbStudent ? dbStudent.is_public === 1 : false, // Use DB setting if available
+                            is_public: dbStudent ? dbStudent.is_public == 1 : false, // Use DB setting if available
                             first_name: firstName,
                             last_name: lastName,
                             nickname: nickname
@@ -1756,7 +2174,7 @@ app.get('/api/m2-students', async (req, res) => {
         // Merge database and filesystem results, preferring database entries
         const dbUsernames = new Set(dbStudents.map(s => s.username));
         const allStudents = [
-            ...dbStudents.map(s => ({ ...s, is_public: s.is_public === 1 })), // Ensure boolean
+            ...dbStudents.map(s => ({ ...s, is_public: s.is_public == 1 })), // Ensure boolean
             ...filesystemStudents.filter(s => !dbUsernames.has(s.username))
         ];
         

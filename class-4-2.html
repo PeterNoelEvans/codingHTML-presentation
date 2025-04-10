@@ -36,7 +36,7 @@
             img.alt = `${username}'s avatar`;
             img.className = 'avatar';
             img.onerror = function() {
-                this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiM2NjY2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                this.src = '/images/default-avatar.png';
             };
             
             const name = document.createElement('h3');
@@ -45,6 +45,8 @@
             const viewBtn = document.createElement('a');
             viewBtn.className = 'view-portfolio';
             viewBtn.textContent = 'View Portfolio';
+            
+            // Use the portfolio path that was passed to the function
             viewBtn.href = portfolioPath;
             
             if (!isPublic) {
@@ -87,22 +89,15 @@
                     loginPrompt.style.display = 'block';
                 }
 
-                // Define the default Class 4/2 students (without privacy settings)
-                const defaultStudents = [
-                    { username: 'Tonmali', portfolio_path: '/portfolios/P4-2/Tonmali/Tonmali.html', avatar_path: '/portfolios/P4-2/Tonmali/images/Tonmali.png' },
-                    { username: 'Darin', portfolio_path: '/portfolios/P4-2/Darin/Darin.html', avatar_path: '/portfolios/P4-2/Darin/images/Darin.png' },
-                    { username: 'Ounjai', portfolio_path: '/portfolios/P4-2/Ounjai/Ounjai.html', avatar_path: '/portfolios/P4-2/Ounjai/images/Ounjai.png' },
-                    { username: 'Peso', portfolio_path: '/portfolios/P4-2/Peso/Peso.html', avatar_path: '/portfolios/P4-2/Peso/images/Peso.png' },
-                    { username: 'Paul', portfolio_path: '/portfolios/P4-2/Paul/Paul.html', avatar_path: '/portfolios/P4-2/Paul/images/Paul.png' },
-                    { username: 'PoonPoon', portfolio_path: '/portfolios/P4-2/PoonPoon/PoonPoon.html', avatar_path: '/portfolios/P4-2/PoonPoon/images/PoonPoon.png' },
-                    { username: 'Tin', portfolio_path: '/portfolios/P4-2/Tin/Tin.html', avatar_path: '/portfolios/P4-2/Tin/images/Tin.png' },
-                    { username: 'Perth', portfolio_path: '/portfolios/P4-2/Perth/Perth.html', avatar_path: '/portfolios/P4-2/Perth/images/Perth.png' },
-                    { username: 'Pleng', portfolio_path: '/portfolios/P4-2/Pleng/Pleng.html', avatar_path: '/portfolios/P4-2/Pleng/images/Pleng.png' },
-                    { username: 'Sky', portfolio_path: '/portfolios/P4-2/Sky/Sky.html', avatar_path: '/portfolios/P4-2/Sky/images/Sky.jpg' },
-                    { username: 'Jdi', portfolio_path: '/portfolios/P4-2/Jdi/Jdi.html', avatar_path: '/portfolios/P4-2/Jdi/images/Jdi.png' },
-                    { username: 'Zeno', portfolio_path: '/portfolios/P4-2/Zeno/Zeno.html', avatar_path: '/portfolios/P4-2/Zeno/images/Zeno.jpg' },
-                    { username: 'Peter42', portfolio_path: '/portfolios/P4-2/Peter42/Peter.html', avatar_path: '/portfolios/P4-2/Peter42/images/Peter42.jpg' }
-                ];
+                // Fetch students from API
+                const studentsResponse = await fetch('/api/classes/P4-2/students?portfolioPath=/portfolios/PhumdhamPrimary/classes/P4-2', {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                const students = await studentsResponse.json();
 
                 // Fetch privacy states from server with no caching
                 const privacyResponse = await fetch('/get-all-privacy-states', {
@@ -117,11 +112,14 @@
                 console.log('Privacy states:', privacyStates); // Debug log
                 
                 // Update privacy states from server data
-                const studentsWithPrivacy = defaultStudents.map(student => {
-                    const isPublic = privacyStates[student.portfolio_path];
+                const studentsWithPrivacy = students.map(student => {
+                    const portfolioPath = `/portfolios/PhumdhamPrimary/classes/P4-2/${student.username}/${student.username}.html`;
+                    const isPublic = privacyStates[portfolioPath];
                     console.log(`${student.username} privacy:`, isPublic); // Debug log
                     return {
                         ...student,
+                        portfolio_path: portfolioPath,
+                        avatar_path: `/portfolios/PhumdhamPrimary/classes/P4-2/${student.username}/images/${student.username}.jpg`,
                         is_public: isPublic
                     };
                 });

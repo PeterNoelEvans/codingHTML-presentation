@@ -50,10 +50,10 @@ async function setupDatabase() {
         
         // Insert Phumdham Class 4/1 students
         const students = [
-            { username: 'Peter41', path: '/portfolios/P4-1/Peter/Peter.html' },
-            { username: 'Peta', path: '/portfolios/P4-1/Peta/Peta.html' },
-            { username: 'Uda', path: '/portfolios/P4-1/Uda/index.html' },
-            { username: 'Nava', path: '/portfolios/P4-1/Nava/Nava.html' }
+            { username: 'Peter41', path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peter/Peter.html' },
+            { username: 'Peta', path: '/portfolios/PhumdhamPrimary/classes/P4-1/Peta/Peta.html' },
+            { username: 'Uda', path: '/portfolios/PhumdhamPrimary/classes/P4-1/Uda/index.html' },
+            { username: 'Nava', path: '/portfolios/PhumdhamPrimary/classes/P4-1/Nava/Nava.html' }
         ];
         
         for (const student of students) {

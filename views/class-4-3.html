@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class 4/3 - Phumdham Primary School</title>
+    <link rel="stylesheet" href="/css/class.css">
+</head>
+<body>
+    <header>
+        <h1>Class 4/3</h1>
+        <p>Phumdham Primary School</p>
+    </header>
+
+    <main>
+        <div id="loginPrompt" class="login-prompt" style="display: none;">
+            Please log in to view private portfolios
+        </div>
+
+        <div id="portfoliosContainer" class="portfolios-container">
+            <!-- Portfolios will be loaded here -->
+        </div>
+    </main>
+
+    <script>
+        // Function to create a portfolio card
+        function createPortfolioCard(username, imagePath, isPublic, portfolioPath) {
+            const card = document.createElement('div');
+            card.className = 'portfolio-card';
+            
+            const privacyBadge = document.createElement('span');
+            privacyBadge.className = `privacy-badge ${isPublic ? 'public' : 'private'}`;
+            privacyBadge.textContent = isPublic ? 'Public' : 'Private';
+            
+            const img = document.createElement('img');
+            img.src = imagePath || '/images/default-avatar.png';
+            img.alt = `${username}'s avatar`;
+            img.className = 'avatar';
+            img.onerror = function() {
+                this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiM2NjY2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            };
+            
+            const name = document.createElement('h3');
+            name.textContent = username;
+            
+            const viewBtn = document.createElement('a');
+            viewBtn.className = 'view-portfolio';
+            viewBtn.textContent = isPublic ? 'View Portfolio' : 'Private Portfolio';
+            viewBtn.href = portfolioPath;
+            
+            if (!isPublic) {
+                viewBtn.style.opacity = '0.7';
+                viewBtn.style.backgroundColor = '#999';
+                viewBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const loginPrompt = document.getElementById('loginPrompt');
+                    loginPrompt.style.display = 'block';
+                    setTimeout(() => {
+                        loginPrompt.style.display = 'none';
+                    }, 3000);
+                });
+            }
+            
+            card.appendChild(privacyBadge);
+            card.appendChild(img);
+            card.appendChild(name);
+            card.appendChild(viewBtn);
+            
+            return card;
+        }
+
+        // Function to load portfolios
+        async function loadPortfolios() {
+            try {
+                // Check authentication status
+                const authResponse = await fetch('/check-auth', {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                const authData = await authResponse.json();
+                
+                // Show login prompt if not authenticated
+                const loginPrompt = document.getElementById('loginPrompt');
+                if (!authData.authenticated) {
+                    loginPrompt.style.display = 'block';
+                }
+                
+                // Get portfolios from the API
+                const response = await fetch('/api/phumdham-students/Class4-3');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch portfolios: ${response.status}`);
+                }
+                
+                const students = await response.json();
+                console.log(`Loaded ${students.length} students`);
+                
+                const container = document.getElementById('portfoliosContainer');
+                container.innerHTML = ''; // Clear existing content
+                
+                // Sort students by username
+                students.sort((a, b) => a.username.localeCompare(b.username));
+                
+                // Create portfolio cards
+                students.forEach(student => {
+                    const card = createPortfolioCard(
+                        student.username,
+                        student.avatar_path,
+                        student.is_public,
+                        student.portfolio_path
+                    );
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading portfolios:', error);
+                document.getElementById('portfoliosContainer').innerHTML = 
+                    '<p class="error">Error loading portfolios. Please try again later.</p>';
+            }
+        }
+
+        // Load portfolios when page loads
+        document.addEventListener('DOMContentLoaded', loadPortfolios);
+    </script>
+</body>
+</html> 
