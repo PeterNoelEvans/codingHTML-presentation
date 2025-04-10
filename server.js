@@ -75,6 +75,18 @@ async function initializeApp() {
         app.use(express.json());
         app.use(express.urlencoded({ extended: true }));
         
+        // Serve utility files
+        app.use('/utils', express.static(path.join(__dirname, 'utils'), {
+            dotfiles: 'allow',
+            etag: true,
+            extensions: ['js'],
+            maxAge: '1d',
+            setHeaders: function (res, path, stat) {
+                res.set('Content-Type', 'application/javascript');
+                res.set('Cache-Control', 'public, max-age=86400');
+            }
+        }));
+        
         // Trust proxy settings - MUST be before session middleware
         app.set('trust proxy', 1);
         
