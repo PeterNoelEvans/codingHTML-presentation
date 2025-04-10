@@ -76,6 +76,15 @@ async function initializeApp() {
         app.use(express.json());
         app.use(express.urlencoded({ extended: true }));
         
+        // Debug middleware to log all requests
+        app.use((req, res, next) => {
+            console.log('\n=== INCOMING REQUEST DEBUG ===');
+            console.log('URL:', req.url);
+            console.log('Method:', req.method);
+            console.log('Headers:', req.headers);
+            next();
+        });
+
         // Serve utility files
         app.use('/utils', express.static(path.join(__dirname, 'utils'), {
             dotfiles: 'ignore',
@@ -193,37 +202,7 @@ async function initializeApp() {
             }
         }));
 
-        // Serve static files first (images, css, js, etc.)
-        app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
-            dotfiles: 'allow',
-            etag: true,
-            extensions: ['htm', 'html', 'png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'gif', 'GIF', 'mp4', 'webp', 'ico', 'svg'],
-            index: false,
-            maxAge: '1d',
-            redirect: false,
-            setHeaders: function (res, path, stat) {
-                // Set proper content type for images based on case-insensitive extension
-                const ext = path.toLowerCase().split('.').pop();
-                if (ext === 'png') {
-                    res.set('Content-Type', 'image/png');
-                } else if (ext === 'jpg' || ext === 'jpeg') {
-                    res.set('Content-Type', 'image/jpeg');
-                } else if (ext === 'gif') {
-                    res.set('Content-Type', 'image/gif');
-                } else if (ext === 'webp') {
-                    res.set('Content-Type', 'image/webp');
-                } else if (ext === 'svg') {
-                    res.set('Content-Type', 'image/svg+xml');
-                }
-                
-                // Prevent caching for images
-                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-                res.set('Pragma', 'no-cache');
-                res.set('Expires', '0');
-            }
-        }));
-
-        // Then handle HTML files with access control
+        // Portfolio access control middleware - MUST come before static file serving
         app.use('/portfolios', async (req, res, next) => {
             console.log('\n=== DETAILED PORTFOLIO ACCESS DEBUG ===');
             console.log('1. Request Details:');
@@ -233,42 +212,41 @@ async function initializeApp() {
             console.log('   User Agent:', req.headers['user-agent']);
             console.log('   Session:', JSON.stringify(req.session, null, 2));
 
+            // Check if file exists physically
+            const fullPath = path.join(__dirname, 'portfolios', req.path);
+            console.log('2. File System Check:');
+            console.log('   Full file path:', fullPath);
+            console.log('   File exists:', fs.existsSync(fullPath));
+
+            // Skip access control for static files
+            const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
+            if (isStaticFile) {
+                console.log('3. Access Control Skipped: Static file detected');
+                return next();
+            }
+
             // Skip access control for class viewer requests
             if (req.headers.referer && 
                 (req.headers.referer.includes('/class-viewer.html') || 
                  req.headers.referer.includes('/classes?') ||
                  req.headers.referer.includes('/class-4-1.html') ||
                  req.headers.referer.includes('/class-4-2.html'))) {
-                console.log('2. Access Control Skipped: Coming from class viewer');
+                console.log('3. Access Control Skipped: Coming from class viewer');
                 return next();
             }
 
-            // Skip access control for static files
-            const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
-            if (isStaticFile) {
-                console.log('2. Access Control Skipped: Static file detected');
-                return next();
-            }
+            console.log('3. Proceeding with access control (not skipped)');
 
-            console.log('2. Proceeding with access control (not skipped)');
-
-            // For HTML files, proceed with access control
+            // For HTML files, proceed with database access control
             const db = new sqlite3.Database(dbPath);
             try {
                 // Extract username from path
                 const pathParts = req.path.split('/');
-                console.log('3. Path Analysis:');
+                console.log('4. Path Analysis:');
                 console.log('   Full path parts:', pathParts);
                 const username = pathParts[pathParts.length - 2]; // Get the folder name instead of HTML file
                 console.log('   Extracted username:', username);
 
-                // Check if file exists physically
-                const fullPath = path.join(__dirname, req.path);
-                const fileExists = fs.existsSync(fullPath);
-                console.log('4. File System Check:');
-                console.log('   Full file path:', fullPath);
-                console.log('   File exists:', fileExists);
-                
                 // Get portfolio access status using case-insensitive username match
                 console.log('5. Database Query:');
                 console.log('   Looking up username:', username);
@@ -331,15 +309,33 @@ async function initializeApp() {
             }
         });
 
-        // Serve static files from portfolios directory
+        // Then serve static files from portfolios directory
         app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
-            setHeaders: (res, path) => {
-                // Set cache control headers for images
-                if (/\.(jpg|jpeg|png|gif|webp|ico|svg)$/i.test(path)) {
-                    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-                    res.set('Expires', '-1');
-                    res.set('Pragma', 'no-cache');
+            dotfiles: 'allow',
+            etag: true,
+            extensions: ['htm', 'html', 'png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'gif', 'GIF', 'mp4', 'webp', 'ico', 'svg'],
+            index: false,
+            maxAge: '1d',
+            redirect: false,
+            setHeaders: function (res, path, stat) {
+                // Set proper content type for images based on case-insensitive extension
+                const ext = path.toLowerCase().split('.').pop();
+                if (ext === 'png') {
+                    res.set('Content-Type', 'image/png');
+                } else if (ext === 'jpg' || ext === 'jpeg') {
+                    res.set('Content-Type', 'image/jpeg');
+                } else if (ext === 'gif') {
+                    res.set('Content-Type', 'image/gif');
+                } else if (ext === 'webp') {
+                    res.set('Content-Type', 'image/webp');
+                } else if (ext === 'svg') {
+                    res.set('Content-Type', 'image/svg+xml');
                 }
+                
+                // Prevent caching for images
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                res.set('Pragma', 'no-cache');
+                res.set('Expires', '0');
             }
         }));
 
