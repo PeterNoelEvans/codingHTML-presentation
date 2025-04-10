@@ -71,14 +71,6 @@ const schoolConfig = require('./config/schools');
 async function initializeApp() {
     console.log('Initializing application...');
 
-    // Copy portfolio files
-    try {
-        require('./scripts/copy-portfolios');
-        console.log('Portfolio files copied successfully');
-    } catch (error) {
-        console.error('Error copying portfolio files:', error);
-    }
-
     try {
         // Essential middleware first
         app.use(express.json());
@@ -1507,7 +1499,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 password: 'admin123', 
                 email: 'admin@school.edu', 
                 role: 'admin',
-                is_super_user: true
+                is_super_user: true,
+                portfolio_path: '/admin/portfolio'  // Add default portfolio path for admin
             }
         ];
 
@@ -1552,21 +1545,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                 password, 
                                 email, 
                                 role, 
-                                is_super_user
-                            ) VALUES (?, ?, ?, ?, 1)`,
+                                is_super_user,
+                                portfolio_path
+                            ) VALUES (?, ?, ?, ?, 1, ?)`,
                             [
                                 account.username,
                                 hashedPassword,
                                 account.email,
-                                account.role
+                                account.role,
+                                account.portfolio_path
                             ],
                             (err) => {
                                 if (err) {
-                                    console.error(`Error creating ${account.username}:`, err);
-                                        reject(err);
+                                    console.error(`Error creating admin account for ${account.username}:`, err);
+                                    reject(err);
                                 } else {
                                     console.log(`Successfully created admin account for ${account.username}`);
-                                        resolve();
+                                    resolve();
                                 }
                             }
                         );
