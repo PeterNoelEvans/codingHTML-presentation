@@ -211,57 +211,34 @@ async function initializeApp() {
             }
         }));
 
-        // Serve public static files first (images, css, js)
-        app.use('/portfolios', (req, res, next) => {
-            // Check if this is a static file request (images, css, js, etc)
-            const staticFileExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.css', '.js', '.webp', '.ico', '.svg'];
-            const isStaticFile = staticFileExtensions.some(ext => req.path.toLowerCase().endsWith(ext));
-            
-            if (isStaticFile) {
-                // For images in student folders, check if they're from class viewer
-                if (req.path.includes('/images/') && !req.headers.referer?.includes('/class-viewer.html')) {
-                    // Extract student name from path for access control
-                    const pathParts = req.path.split('/');
-                    const studentIndex = pathParts.indexOf('images') - 1;
-                    if (studentIndex > 0) {
-                        // Allow access to images if coming from class viewer or portfolio is public
-                        if (req.headers.referer && 
-                            (req.headers.referer.includes('/class-viewer.html') || 
-                             req.headers.referer.includes('/classes?') ||
-                             req.headers.referer.includes('/class-4-1.html') ||
-                             req.headers.referer.includes('/class-4-2.html'))) {
-                            return express.static(path.join(__dirname, 'portfolios'))(req, res, next);
-                        }
-                    }
+        // Serve static files from portfolios directory
+        app.use('/portfolios', express.static(path.join(__dirname, 'portfolios'), {
+            dotfiles: 'allow',
+            etag: true,
+            maxAge: '1d',
+            fallthrough: true,
+            setHeaders: (res, path, stat) => {
+                // Set proper content type for files
+                const ext = path.toLowerCase().split('.').pop();
+                const contentTypes = {
+                    'html': 'text/html',
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'svg': 'image/svg+xml',
+                    'mp4': 'video/mp4',
+                    'css': 'text/css',
+                    'js': 'application/javascript'
+                };
+                if (contentTypes[ext]) {
+                    res.set('Content-Type', contentTypes[ext]);
                 }
-                // For all other static files, serve directly
-                return express.static(path.join(__dirname, 'portfolios'), {
-                    dotfiles: 'allow',
-                    etag: true,
-                    maxAge: '1d',
-                    setHeaders: (res, path, stat) => {
-                        // Set proper content type for images
-                        const ext = path.toLowerCase().split('.').pop();
-                        const contentTypes = {
-                            'png': 'image/png',
-                            'jpg': 'image/jpeg',
-                            'jpeg': 'image/jpeg',
-                            'gif': 'image/gif',
-                            'webp': 'image/webp',
-                            'svg': 'image/svg+xml'
-                        };
-                        if (contentTypes[ext]) {
-                            res.set('Content-Type', contentTypes[ext]);
-                        }
-                        // Prevent caching for images
-                        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-                        res.set('Pragma', 'no-cache');
-                        res.set('Expires', '0');
-                    }
-                })(req, res, next);
+                // Set caching headers
+                res.set('Cache-Control', 'public, max-age=86400');
             }
-            next();
-        });
+        }));
 
         // Then handle portfolio HTML files with authentication
         app.get('/portfolios/*', async (req, res, next) => {
@@ -2237,3 +2214,15 @@ function parseStudentName(dirName) {
     
     return { firstName, lastName, nickname };
 }
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server Error:', err);
+    res.status(500).send('Internal Server Error');
+});
+
+// Add 404 handler
+app.use((req, res) => {
+    console.log('404 Not Found:', req.path);
+    res.status(404).send('File not found');
+});
