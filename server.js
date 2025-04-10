@@ -225,43 +225,26 @@ async function initializeApp() {
 
         // Then handle HTML files with access control
         app.use('/portfolios', async (req, res, next) => {
+            console.log('\n=== Portfolio Access Request ===');
+            console.log('Path:', req.path);
+            console.log('Referer:', req.headers.referer);
+            console.log('Session:', req.session);
+            
             // Skip access control for class viewer requests
             if (req.headers.referer && 
                 (req.headers.referer.includes('/class-viewer.html') || 
                  req.headers.referer.includes('/classes?') ||
                  req.headers.referer.includes('/class-4-1.html') ||
                  req.headers.referer.includes('/class-4-2.html'))) {
+                console.log('Skipping access control - coming from class viewer');
                 return next();
             }
 
-            // Check if this is a static file request (images, CSS, etc.)
+            // Skip access control for static files
             const isStaticFile = /\.(jpg|jpeg|png|gif|webp|ico|svg|mp4|css|js)$/i.test(req.path);
             if (isStaticFile) {
-                // For static files, try both extensions
-                const basePath = req.path.replace(/\.(jpg|jpeg|png)$/i, '');
-                const pngPath = path.join(__dirname, basePath + '.png');
-                const jpgPath = path.join(__dirname, basePath + '.jpg');
-                
-                if (fs.existsSync(pngPath)) {
-                    return res.sendFile(pngPath, {
-                        headers: {
-                            'Content-Type': 'image/png',
-                            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-                            'Pragma': 'no-cache',
-                            'Expires': '0'
-                        }
-                    });
-                } else if (fs.existsSync(jpgPath)) {
-                    return res.sendFile(jpgPath, {
-                        headers: {
-                            'Content-Type': 'image/jpeg',
-                            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-                            'Pragma': 'no-cache',
-                            'Expires': '0'
-                        }
-                    });
-                }
-                return next(); // Let express.static handle it if file not found
+                console.log('Skipping access control - static file');
+                return next();
             }
 
             // For HTML files, proceed with access control
@@ -269,7 +252,8 @@ async function initializeApp() {
             try {
                 // Extract username from path
                 const pathParts = req.path.split('/');
-                const username = pathParts[pathParts.length - 1].replace('.html', '');
+                const username = pathParts[pathParts.length - 2]; // Get the folder name instead of HTML file
+                console.log('Checking access for username:', username);
                 
                 // Get portfolio access status using case-insensitive username match
                 const portfolio = await new Promise((resolve, reject) => {
@@ -288,20 +272,27 @@ async function initializeApp() {
                     });
                 });
 
+                console.log('Portfolio lookup result:', portfolio);
+
                 if (!portfolio) {
+                    console.log('Portfolio not found');
                     return res.status(404).send('Portfolio not found');
                 }
 
                 // Check if user is authenticated
                 const isAuthenticated = req.session && req.session.user;
+                console.log('Authentication status:', isAuthenticated);
                 
                 // Convert is_public to number and use strict comparison
                 const isPublic = Number(portfolio.is_public) === 1;
+                console.log('Portfolio is public:', isPublic);
                 
                 // Allow access if portfolio is public or user is authenticated
                 if (isPublic || isAuthenticated) {
+                    console.log('Access granted');
                     next();
                 } else {
+                    console.log('Access denied');
                     res.status(403).send('Access denied');
                 }
             } catch (error) {
