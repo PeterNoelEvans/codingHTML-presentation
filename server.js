@@ -33,7 +33,19 @@ if (isProduction) {
         console.log('Data directory is writable');
     } catch (error) {
         console.error('Error with directory setup:', error);
-        process.exit(1);
+        // Try alternative path if the primary path fails
+        const altDataDir = path.join(__dirname, 'data');
+        try {
+            if (!fs.existsSync(altDataDir)) {
+                console.log('Trying alternative data directory...');
+                fs.mkdirSync(altDataDir, { recursive: true, mode: 0o755 });
+            }
+            fs.accessSync(altDataDir, fs.constants.W_OK);
+            console.log('Alternative data directory is writable');
+        } catch (altError) {
+            console.error('Both data directory paths failed:', altError);
+            process.exit(1);
+        }
     }
 }
 
