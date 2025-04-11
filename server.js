@@ -280,8 +280,8 @@ async function initializeApp() {
 
         // Then handle portfolio HTML files with authentication
         app.get('/portfolios/*', async (req, res, next) => {
-            // Remove trailing slash if present
-            const portfolioPath = req.path.replace(/\/$/, '');
+            // Normalize the path - remove trailing slash and normalize slashes
+            const portfolioPath = req.path.replace(/\/+$/, '').replace(/\/+/g, '/');
             
             console.log('\n=== Portfolio Access Debug ===');
             console.log('Original path:', req.path);
@@ -347,8 +347,15 @@ async function initializeApp() {
                         }
                     }
                 }
-                // For other static files (css, js, etc), allow access
                 return next();
+            }
+
+            // If the path ends with .html, ensure it doesn't have a trailing slash
+            if (portfolioPath.endsWith('.html')) {
+                // Redirect to the non-slash version if there's a trailing slash
+                if (req.path.endsWith('/')) {
+                    return res.redirect(301, portfolioPath);
+                }
             }
             
             console.log('\n=== Portfolio Access Attempt ===');

@@ -38,16 +38,22 @@
 
         static getPortfolioPath(schoolId, classId, username) {
             const formattedUsername = this.formatUsername(username);
-            return `/portfolios/${schoolId}/classes/${classId}/${formattedUsername}/${formattedUsername}.html`;
+            // Use path.join to construct the path, then convert to URL format
+            const parts = ['portfolios', schoolId, 'classes', classId, formattedUsername, `${formattedUsername}.html`];
+            return '/' + parts.join('/');
         }
 
         static getAvatarPath(schoolId, classId, username) {
             const formattedUsername = this.formatUsername(username);
-            return `/portfolios/${schoolId}/classes/${classId}/${formattedUsername}/images/${formattedUsername}.jpg`;
+            // Use path.join to construct the path, then convert to URL format
+            const parts = ['portfolios', schoolId, 'classes', classId, formattedUsername, 'images', `${formattedUsername}.jpg`];
+            return '/' + parts.join('/');
         }
 
         static getClassBasePath(schoolId, classId) {
-            return `/portfolios/${schoolId}/classes/${classId}`;
+            // Use path.join to construct the path, then convert to URL format
+            const parts = ['portfolios', schoolId, 'classes', classId];
+            return '/' + parts.join('/');
         }
 
         static validatePath(path) {

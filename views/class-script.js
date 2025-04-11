@@ -18,14 +18,14 @@ console.log('Privacy states:', privacyStates);
 
 // Update students with privacy states
 const studentsWithPrivacy = students.map(student => {
-    // Ensure consistent path format without trailing slash
-    const portfolioPath = `/portfolios/PhumdhamPrimary/classes/${classId}/${student.username}/${student.username}.html`.replace(/\/+/g, '/');
+    // Use PathManager to construct paths
+    const portfolioPath = PathManager.getPortfolioPath('PhumdhamPrimary', classId, student.username);
     const isPublic = privacyStates[portfolioPath];
     console.log(`${student.username} privacy:`, isPublic);
     return {
         ...student,
         portfolio_path: portfolioPath,
-        avatar_path: `/portfolios/PhumdhamPrimary/classes/${classId}/${student.username}/images/${student.username}.jpg`.replace(/\/+/g, '/'),
+        avatar_path: PathManager.getAvatarPath('PhumdhamPrimary', classId, student.username),
         is_public: isPublic
     };
 });
